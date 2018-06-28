@@ -1,0 +1,21 @@
+{
+	"manifest_version": 2,
+
+	"name": "Google Doc Miner",
+	"version": "0.1",
+	"description": "Mining revisions data in google doc",
+	"background": {
+		"scripts": ["miner.js"]
+	},
+	"content_scripts":[{
+	    "matches" : ["*://docs.google.com/*"], //the valid context for injecting code
+		"js": ["view.js"], //code to inject
+		"run_at": "document_end" //ensures we run our injected code when everything is ready
+	}],
+	"permissions": [
+	    "webRequest",
+	    "tabs",
+	    "activeTab",
+	    "*://docs.google.com/*"
+	]
+}
