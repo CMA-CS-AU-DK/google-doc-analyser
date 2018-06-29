@@ -1,21 +1,27 @@
 {
 	"manifest_version": 2,
 
-	"name": "Google Doc Miner",
+	"name": "Google Doc Analyser",
 	"version": "0.1",
-	"description": "Mining revisions data in google doc",
+	"description": "Analyse Google Doc revisions",
 	"background": {
-		"scripts": ["miner.js"]
+		"scripts": ["setup.js"]
 	},
 	"content_scripts":[{
 	    "matches" : ["*://docs.google.com/*"], //the valid context for injecting code
-		"js": ["view.js"], //code to inject
+		"js": ["injected.js"], //code to inject
 		"run_at": "document_end" //ensures we run our injected code when everything is ready
 	}],
+	"browser_action": {
+		//"default_icon": "icon.png",
+		"default_title": "Google Doc Analyser"
+	  },
 	"permissions": [
-	    "webRequest",
+		"webRequest",
 	    "tabs",
-	    "activeTab",
+		"activeTab",
+		"contextMenus",
+    	"storage",
 	    "*://docs.google.com/*"
 	]
 }
