@@ -19,10 +19,10 @@ button {
     height: 100%;
 }
     
-    
 
 #timeline {
-    width:1400px; 
+    width:80%; 
+    min-width: 600px;
     height: 100px;
 }
 
