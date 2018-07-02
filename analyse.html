@@ -1,38 +1,30 @@
 <html>
 <head>
     <link rel="stylesheet" type="text/css" href="analyse.css">
+    <script src="d3.v5.min.js"></script>
 </head>
 
 <body>
     <button>Download Data</button>
-    <div id="document" class="col">
+    <div id="selectors" class="col">
+        <ul id="users">
+            <legend>Users</legend>
+        </ul>
+        <ul id="types">
+            <legend>Revision type</legend>
+            <li><input type="checkbox" checked="true"> Inserts</li>
+            <li><input type="checkbox" checked="true"> Deletes</li>
+            <li><input type="checkbox" checked="true"> Multiples</li>
+        </ul>
+    </div>
+    <div id="analyses" class="col">
+        <div id="timeline"></div>
+        <div id="userseries"></div>
+        <div id="documentline"></div>
+        <div id="revisioncontext"></div>
+    </div>
     
-    </div>
-    <div id="pages" class="col">
-        <div class="page"></div>
-    </div>
-    <div id="revisions" class="col">
-            <h1>Revisions</h1>
-    </div>
-    <div id="stats">
-        <h1></h1>
-        <div>Created:
-            <span></span>
-        </div>
-        <div>Word count:
-            <span></span>
-        </div>
-        <div>Characters count
-            <span></span>
-        </div>
-        <div>Document revisions:
-            <span></span>
-        </div>
-        <div>
-            <h3>Document users</h3>
-            <!-- users -->
-        </div>
-    </div>
+
 
     <script src="analyse.js"></script>
 </body>

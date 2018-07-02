@@ -1,42 +1,46 @@
 html, body {
+    height: 100%;
+    width:100%;
+
+}
+
+button {
+    position:absolute;
+    top:10px;
+    left:10px;
+    visibility:hidden;
 
 }
 
 .col {
     display:inline-block;
     vertical-align: top;
-    margin:40px 10px;
+    margin:40px 40px;
+    height: 100%;
 }
-
-#pages {
-    width:100px;
-}
-
-#pages .page {
-    width:60px;
-    height: 85px;
-    border: 1px solid #666;
-    box-shadow: 0 0 4px #666;
-}
-
-#revisions {
-    width:200px;
-}
-
-#revisions .rev{
-    margin:4px 0px;
-}
-
-#document {
-    width:600px;
-    height:850px;
-    border: 1px solid #666;
     
-    padding:10px;
-    box-shadow: 0 0 10px #666;
+    
+
+#timeline {
+    width:1400px; 
+    height: 100px;
 }
 
-#stats {
-    display:inline-block;
-    vertical-align: top;
+.user {
+    color:black;
+}
+
+ul {
+    font-size:120%;
+    margin:0;
+    padding:0;
+    list-style: none;
+}
+
+ul legend {
+    font-weight: bold;
+}
+
+ul li {
+    margin:10px;
 }
