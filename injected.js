@@ -1,74 +1,20 @@
 //Stop global (scope) pollution
-; (function () {
+;
+(function () {
 
     var revisionCount = 0
 
 
     function init() {
         console.log("Initialising")
-        getRevisions(function(err, data){
-            if(err){
+        getRevisions(function (err, data) {
+            if (err) {
                 console.log(err)
             } else {
                 revisionCount = data.tileInfo[data.tileInfo.length - 1].end;
-                addInterfaceElements()
-            }
-        })
-        
-    }
-
-    function addInterfaceElements() {
-        button = document.createElement("div")
-        button.id = "cma-rev-miner"
-        button.classList = "goog-inline-block jfk-button jfk-button-standard docs-titlebar-button"
-        button.innerHTML = "Analyse Doc"
-        button.addEventListener('click', analyse)
-        document.querySelector('.docs-titlebar-buttons').prepend(button)
-    }
-
-    function analyse() {
-        console.log("Analysing ...")
-        getRevisions( function (err, data) {
-            if (err) {
-                console.log(err)
-            } else {
-                parseRevisions(data)
             }
         })
 
-        getChanges( function (err, data) {
-            if (err) {
-                console.log(err)
-            } else {
-                parseChanges(data.changeLog)
-            }
-        })
-    }
-
-    function parseChanges(data){
-        var element = document.createElement('a');
-        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(JSON.stringify(data)));
-        element.setAttribute('download', "changes.json");
-
-        element.style.display = 'none';
-        document.body.appendChild(element);
-
-        element.click();
-
-        document.body.removeChild(element);
-    }
-
-    function parseRevisions(data) {
-        var element = document.createElement('a');
-        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(JSON.stringify(data)));
-        element.setAttribute('download', "revisions.json");
-
-        element.style.display = 'none';
-        document.body.appendChild(element);
-
-        element.click();
-
-        document.body.removeChild(element);
     }
 
     function getToken() {
@@ -93,7 +39,7 @@
         return getBaseUrl() + doc + "/revisions/tiles?id=" + doc + "&start=1&showDetailedRevisions=false&token=" + getToken()
     }
 
-    function getRevisionCount(){
+    function getRevisionCount() {
         return revisionCount
     }
 
@@ -102,7 +48,7 @@
         return getBaseUrl() + doc + "/revisions/load?id=" + doc + "&start=1&end=" + parseInt(('' + getRevisionCount()).replace(/,/g, '')) + "&token=" + getToken()
     }
 
-    function getBaseUrl(){
+    function getBaseUrl() {
         var meta = document.querySelector("meta[itemprop='url']").getAttribute("content")
         var reg = meta.match(/^(https:\/\/docs\.google\.com.*?\/document(?:\/u\/\d+)?\/d\/)/)
         return reg[1]
@@ -133,7 +79,7 @@
         xhr.send(null);
     }
 
-    function getChanges(cb){
+    function getChanges(cb) {
         var xhr = new XMLHttpRequest();
 
         xhr.open('GET', getChangeURL());
@@ -142,10 +88,9 @@
         xhr.onload = function () {
             if (xhr.status === 200) {
                 //var data = JSON.parse(xhr.responseText)
-
                 var res = xhr.responseText
-                var tiles = JSON.parse(res.split("\n")[1]);
-                cb(null, tiles)
+                var data = JSON.parse(res.split("\n")[1]);
+                cb(null, data.changelog)
             } else {
                 cb("Error " + xhr.status)
             }
@@ -159,12 +104,33 @@
     }
 
     chrome.runtime.onMessage.addListener(
-        function(request, sender, sendResponse) {
-          console.log(sender.tab ?
-                      "from a content script:" + sender.tab.url :
-                      "from the extension");
-          console.log(request)
-        });
+        function (msg, sender, sendResponse) {
+            if(msg.request === "data"){
+                
+                var data = {}
+                data.title = document.querySelector("input.docs-title-input").value
+                data.documentID = getDocumentID
+                
+                getRevisions(function (err, revisions) {
+                    if (err) {
+                        console.log(err)
+                    } else {
+                        data.super_revisions = revisions.tileInfo
+                        data.users = revisions.userMap
+                        getChanges(function (err, changes) {
+                            if (err) {
+                                console.log(err)
+                            } else {
+                                data.revisions = changes
+                                sendResponse(data)
+                            }
+                        })
+                    }
+                })
+            }
+            return true
+        }
+    );
 
     init()
 })();

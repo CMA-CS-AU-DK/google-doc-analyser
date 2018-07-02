@@ -11,7 +11,7 @@
 	    "matches" : ["*://docs.google.com/*"], //the valid context for injecting code
 		"js": ["injected.js"], //code to inject
 		"run_at": "document_end" //ensures we run our injected code when everything is ready
-	}],
+	}	],
 	"browser_action": {
 		//"default_icon": "icon.png",
 		"default_title": "Google Doc Analyser"

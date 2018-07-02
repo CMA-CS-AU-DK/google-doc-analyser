@@ -1,0 +1,42 @@
+html, body {
+
+}
+
+.col {
+    display:inline-block;
+    vertical-align: top;
+    margin:40px 10px;
+}
+
+#pages {
+    width:100px;
+}
+
+#pages .page {
+    width:60px;
+    height: 85px;
+    border: 1px solid #666;
+    box-shadow: 0 0 4px #666;
+}
+
+#revisions {
+    width:200px;
+}
+
+#revisions .rev{
+    margin:4px 0px;
+}
+
+#document {
+    width:600px;
+    height:850px;
+    border: 1px solid #666;
+    
+    padding:10px;
+    box-shadow: 0 0 10px #666;
+}
+
+#stats {
+    display:inline-block;
+    vertical-align: top;
+}
