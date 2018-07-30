@@ -13,9 +13,9 @@
         })
 
         insertUsers(self.data)
+        processRevisions(self.data)
 
-        //processRevisions(self.data)
-
+        //inspectRevisions(self.data)
         //largeRevisionMap(self.data)
         //buildRevisionTimeline(self.data)
 
@@ -42,26 +42,33 @@
         3: revision number
         4: uniquerevision identifier
         5: revision number for that user
+
+        defining super revisions (collections of revisions that are meaningfully clustered)
+
+        User change
+        Same user but creating a new paragraph
+
+        Distinct opeartions (with intent)
+        Copy-paste
+        Headline
+        
+        Other place in document (other paragraph)
+        Other time (last edit + threshold)
     */
 
     function processRevisions(data, temporalDistanceThreshold, indexicalDistanceThreshold, uniqueUsers) {
         return new Promise((resolve) => {
             var superRevisions = []
             var revisions = data.revisions;
-            temporalDistanceThreshold = temporalDistanceThreshold || 2000;
+            temporalDistanceThreshold = temporalDistanceThreshold || 10000;
             indexicalDistanceThreshold = indexicalDistanceThreshold || 0.2;
             uniqueUsers = uniqueUsers || true;
-            var revisionIndexPairs = []
-            var superRevision = {
-                startIndex: 0,
-                endIndex: null,
-                revisions: [],
-                startTime: null,
-                end
-            }
+
+            var superRevision;
             for (var i = 0, n = revisions.length; i < n; i++) {
                 if (!superRevision) {
                     superRevision = {
+                        type: null, //define later
                         startIndex: 0,
                         endIndex: null,
                         revisions: [revisions[i]],
@@ -69,24 +76,153 @@
                         endTime: null,
                     }
                 } else {
-                    if (revisions[i][1] > revisions[i - 1][1] + temporalDistanceThreshold) {
-                        //new revision because time
+                    //If the user is different, it is a new revision
+                    if (revisions[i][2] != revisions[i - 1][2]) {
+                        superRevision.endIndex = i-1
+                        superRevision.endTime = revisions[i-1][1]
+                        superRevision.type = "user"
+                        superRevisions.push(superRevision)
+
+                        superRevision = {
+                            type: null, //define later
+                            startIndex: i,
+                            endIndex: null,
+                            revisions: [revisions[i]],
+                            startTime: revisions[i][1],
+                            endTime: null,
+                        }
+                    } else if(detectParagraphChange(revisions[i][0])){
+                        superRevision.endIndex = i-1
+                        superRevision.endTime = revisions[i-1][1]
+                        superRevision.type = "paragraph"
+                        superRevisions.push(superRevision)
+
+                        superRevision = {
+                            type: null, //define later
+                            startIndex: i,
+                            endIndex: null,
+                            revisions: [revisions[i]],
+                            startTime: revisions[i][1],
+                            endTime: null,
+                        }
+                    } else if(detectCopyPasteInsert(revisions[i][0])){
+                        superRevision.endIndex = i-1
+                        superRevision.endTime = revisions[i-1][1]
+                        superRevision.type = "paste"
+                        superRevisions.push(superRevision)
+
+                        superRevision = {
+                            type: null, //define later
+                            startIndex: i,
+                            endIndex: null,
+                            revisions: [revisions[i]],
+                            startTime: revisions[i][1],
+                            endTime: null,
+                        }
+                    } else if(false){
+                        //in in headline
+                    } else if(false){
+                        //has moved paragrap (from previous edit)
+                    } else if(false){
+                        //has jumped in time
+                    } else {
+                        superRevision.revisions.push(revisions[i])
                     }
-
-
                 }
-
-
-
-                var centerRevision = revisions[i]
-                for (var m = i + 1, l = revisions.length; m < l; m++) {
-                    var currentRevision = revisions[m]
-                    //if(centerRevision)
-
-                }
-                //if there is a significant gab between revisions in time, document, 
             }
+            console.log(revisions.length)
+            console.log(superRevisions.length)
         })
+    }
+
+    function inspectRevisions(data) {
+        var revisions = data.revisions
+        for (var i = 0, n = revisions.length; i < n; i++) {
+            var rev = revisions[i]
+            
+            var pos = getLargestCharacterPosition(rev[0])
+            console.log(pos)
+            if (rev[0].ty === "mlti") {
+                
+                var mts = rev[0].mts
+                for (var j = 0, k = mts.length; j < k; j++) {
+                    var mlti_rev = mts[j]
+                    
+                    if (mlti_rev.st === "text") {
+                        //console.log(revisions[i - 1])
+                        //console.log(rev)
+                        //console.log(revisions[i + 1])
+                    }
+                }
+            }
+        }
+    }
+
+    function getDocumentLength(data) {
+        var revs = data.revisions
+        var characters = 0; // ----> document size
+
+        for (var i = 0, n = revs.length; i < n; i++) {
+            var details = revs[i][0]
+            var c = getLargestCharacterPosition(details)
+            if (characters < c) {
+                characters = c;
+            }
+        }
+
+        return characters;
+    }
+
+    function detectCopyPasteInsert(revision){
+        if(revision.ty === "mlti"){
+            var mts = revision.mts
+            for(var i = 0, n = mts.length; i < n; i++ ){
+                var rev = mts[i]
+                if(rev.ty === "mlti"){
+                    return detectCopyPasteInsert(rev)
+                } else if(mts[i].ty === "as" && mts[i].st === "text" ){
+                    return true
+                }
+            }
+        }
+        return false;
+    }
+
+    function detectParagraphChange(revision){
+        if(revision.ty === "mlti"){
+            var mts = revision.mts
+            for(var i = 0, n = mts.length; i < n; i++ ){
+                var rev = mts[i]
+                if(rev.ty === "mlti"){
+                    return detectParagraphChange(rev)
+                } else if(mts[i].ty === "as" && mts[i].st === "paragraph" ){
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    function getLargestCharacterPosition(revision, largest) {
+        largest = largest || 0
+
+        if (revision.ty === "is") {
+            if (revision.ibi > largest) {
+                largest = revision.ibi;
+            }
+        } else if (revision.ty === "ds") {
+            if (revision.ei > largest) {
+                largest = revision.ei;
+            }
+        } else if (revision.ty === "mlti") {
+            for (var i = 0, n = revision.mts.length; i < n; i++) {
+                var c = getLargestCharacterPosition(revision.mts[i], largest)
+                if (largest < c) {
+                    largest = c
+                }
+            }
+        }
+        return largest
     }
 
     function download(data) {
@@ -334,60 +470,6 @@
             })
             .attr("width", width / data.revisions.length)
             .attr("height", height / users.length - 1)
-    }
-
-    function getDocumentCharacterCount(data) {
-        var revs = data.revisions
-        var characters = 0; // ----> document size
-
-        for (var i = 0, n = revs.length; i < n; i++) {
-            var details = revs[i][0]
-            var c = getLargestCharacterPosition(details)
-            if (characters < c) {
-                characters = c;
-            }
-        }
-
-        function getLargestCharacterPosition(revision, largest) {
-            largest = largest || 0
-
-            if (revision.ty === "is") {
-                if (revision.ty > largest) {
-                    largest = revision.ei;
-                }
-            } else if (revision.ty === "ds") {
-                if (revision.ei > largest) {
-                    largest = revision.ei;
-                }
-            } else if (revision.ty === "mlti") {
-                for (var i = 0, n = revision.mts.length; i < n; i++) {
-                    var c = getLargestCharacterPosition(revision.mts[i], largest)
-                    if (largest < c) {
-                        largest = c
-                    }
-                }
-            }
-            return largest
-        }
-
-        return characters;
-    }
-
-    function getRevisionPosition(revision) {
-        if (revision.ty === "is") {
-            return revision.ibi
-        } else if (revision.ty === "ds") {
-            return revision.si
-        } else if (revision.ty === "mlti") {
-            var pos = 0;
-            for (var i = 0, n = revision.mts.length; i < n; i++) {
-                var c = getRevisionPosition(revision.mts[i])
-                if (c > pos) {
-                    pos = c;
-                }
-            }
-            return pos
-        }
     }
 
 })();
