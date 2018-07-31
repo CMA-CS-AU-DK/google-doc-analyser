@@ -6,7 +6,6 @@
 
 
     function init() {
-        console.log("Initialising")
         getRevisions(function (err, data) {
             if (err) {
                 console.log(err)
@@ -14,7 +13,6 @@
                 revisionCount = data.tileInfo[data.tileInfo.length - 1].end;
             }
         })
-
     }
 
     function getToken() {
@@ -110,7 +108,7 @@
                 var data = {}
                 data.title = document.querySelector("input.docs-title-input").value
                 data.documentID = getDocumentID
-                
+
                 getRevisions(function (err, revisions) {
                     if (err) {
                         console.log(err)

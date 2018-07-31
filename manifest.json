@@ -1,27 +1,35 @@
 {
 	"manifest_version": 2,
-
 	"name": "Google Doc Analyser",
 	"version": "0.1",
 	"description": "Analyse Google Doc revisions",
 	"background": {
-		"scripts": ["setup.js"]
+		"scripts": [
+			"setup.js"
+		]
 	},
-	"content_scripts":[{
-	    "matches" : ["*://docs.google.com/*"], //the valid context for injecting code
-		"js": ["injected.js"], //code to inject
-		"run_at": "document_end" //ensures we run our injected code when everything is ready
-	}	],
+	"content_scripts": [
+		{
+			"matches": [
+				"*://docs.google.com/*"
+			], 
+			"js": [
+				"injected.js"
+			], 
+			"run_at": "document_end" 
+		}
+	],
 	"browser_action": {
 		//"default_icon": "icon.png",
 		"default_title": "Google Doc Analyser"
-	  },
+	},
 	"permissions": [
 		"webRequest",
-	    "tabs",
+		"webNavigation",
+		"tabs",
 		"activeTab",
 		"contextMenus",
-    	"storage",
-	    "*://docs.google.com/*"
+		"downloads",
+		"*://docs.google.com/*"
 	]
 }

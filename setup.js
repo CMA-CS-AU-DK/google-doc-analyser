@@ -1,33 +1,63 @@
+chrome.tabs.onActivated.addListener(function (e) {
+    chrome.contextMenus.removeAll();
+    chrome.tabs.get(e.tabId, function (tab) {
+        if (tab.url.indexOf("docs.google.com/document") > -1) {
+            addMenuItems();
+        }
+    })
+})
 
+chrome.tabs.onUpdated.addListener(function (tabId) {
+    chrome.contextMenus.removeAll();
+    chrome.tabs.get(tabId, function (tab) {
+        if (tab.status == "complete" && tab.url.indexOf("docs.google.com/document") > -1) {
+            addMenuItems();
+        }
+    })
+});
 
-chrome.runtime.onInstalled.addListener(function() {
+chrome.windows.onFocusChanged.addListener(function (windowId) {
+    chrome.contextMenus.removeAll();
+    if (windowId != -1) {
+        chrome.windows.get(windowId, { populate: true }, function (info) {
+            if (info && info.focused) {
+                var tab;
+                for (var i = 0, n = info.tabs.length; i < n; i++) {
+                    if (info.tabs[i].active) {
+                        tab = info.tabs[i];
+                        break;
+                    }
+                }
+
+                if (tab && tab.url.indexOf("docs.google.com/document") > -1) {
+                    addMenuItems();
+                }
+            }
+        });
+    }
+});
+
+function addMenuItems() {
+    chrome.contextMenus.removeAll(); //because some of the adding events (onUpdate) will be fired multiple times
     chrome.contextMenus.create({
         "id": "itm1",
-        "title": "Analyse Document",
+        "title": "Download Revisions",
         "type": "normal",
         "contexts": ["browser_action"],
-        "visible": true,
-        "documentUrlPatterns": ["https://docs.google.com/document/*"],
-        "onclick":analyse
-    });    
-  });
+        "onclick": download
+    });
+};
 
-
-function analyse(details) {
-    
-    chrome.tabs.query({'active': true, lastFocusedWindow: true}, function (tabs) {
-        var url =tabs[0].url; //We need the url to check if the current page is a googel doc
-        var id = tabs[0].id; //We need to pass the tab id to the analysis page so we can request data
-        if(url.indexOf("docs.google.com/document") > -1 ){
-            /*
-            chrome.tabs.sendMessage(parseInt(id), {request: "data"}, function(response) {
-                console.log("getting response")
-                console.log(response);
-            });*/
-            
-            var analysis = chrome.tabs.create({
-                "url": "analyse.html?id=" + id
+function download() {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, { request: "data" }, function (response) {
+            var blob = new Blob([JSON.stringify(response, null, 4)], {type : 'application/json'});
+            var url = URL.createObjectURL(blob);
+            chrome.downloads.download({
+                url: url,
+                filename: response.title + ".json"
             });
-        }
+        });
     });
 }
+
