@@ -1,5 +1,5 @@
-//const fileToAnalyse = "../data/GoogleTestDocument.json";
-const fileToAnalyse = "../data/ReworkedFramework.json";
+const fileToAnalyse = "../data/GoogleTestDocument.json";
+//const fileToAnalyse = "../data/ReworkedFramework.json";
 const fs = require("fs");
 var data = JSON.parse(fs.readFileSync(fileToAnalyse, 'utf8'));
 
@@ -21,6 +21,7 @@ document.body.appendChild(wrap2)
 
 
 var revs = data.revisions;
+console.log(revs.length)
 var users = data.users;
 
 var html = "<html><body>"
@@ -114,7 +115,6 @@ function mlti(rev, time, user, id) {
 }
 
 
-console.log("part 1 over")
 var currentElement, currentRevision
 for (var i = 0, n = inserts.length; i < n; i++) {
     var r = inserts[i]

@@ -3,7 +3,9 @@ const fileToAnalyse = "../data/GoogleTestDocument.json";
 const D3Node = require("d3-node");
 const fs = require("fs");
 let ur = require("./user_revisions.js");
-var users = ur.user_revisions(fileToAnalyse)
+let construct = require("./construct.js");
+let users = ur.user_revisions(fileToAnalyse)
+
 
 var user_sessions = [];
 
@@ -17,6 +19,8 @@ for(var u in users){
         if (!session) {
 
             session = {
+                id: 0,
+                user:u,
                 si: findStartIndex(r),
                 ei: findEndIndex(r),
                 st: r[1],
@@ -30,7 +34,8 @@ for(var u in users){
             if (r[1] > (session.et + 1000 * 60 * 15)) { //we define a session as 15 minutes similarly to DocuViz assumption about 15 minutes as a simultanious work interval
                 users[u].sessions.push(session)
                 session = {
-                    
+                    id: users[u].sessions.length,
+                    user:u,
                     si: findStartIndex(r),
                     ei: findEndIndex(r),
                     st: r[1],
@@ -114,11 +119,73 @@ function findEndIndex(r) {
     return index || 0;
 }
 
-const d3options = {
-  
-};
+var sessionTimePairs = []
+var sessionPlacePairs = []
+for(var u in users){
+    var sessions = users[u].sessions
+    
+    
+    sessions.forEach((s)=>{
+        for(var ou in users){
+            if(u != ou){
+                var ouSessions = users[ou].sessions;
+                ouSessions.forEach((ss)=>{
+                    if(sameTime(s, ss)){
+                        if(!sessionTimePairs.some((o)=>{
+                            
+                            var so = o[0];
+                            var sso = o[1];
 
-const d3n = new D3Node(d3options); // initializes D3 with container element
+                            return (so.id === s.id && so.user === s.user && sso.id === ss.id && sso.user === ss.user) ||
+                            (so.id === ss.id && so.user === ss.user && sso.id === s.id && sso.user === s.user);
+
+                        })){
+                            sessionTimePairs.push([s, ss]);
+                        }
+                    }
+                });
+            }
+        }
+    })
+}
+
+
+//construct.construct(fileToAnalyse)
+
+var si = sessionPlacePairs[0][0].sr < sessionPlacePairs[0][1].sr ? sessionPlacePairs[0][0].sr : sessionPlacePairs[0][1].sr;
+var ei = sessionPlacePairs[0][0].er > sessionPlacePairs[0][1].er ? sessionPlacePairs[0][0].er : sessionPlacePairs[0][1].er;
+var array = sessionPlacePairs[0][0].revisions.concat(sessionPlacePairs[0][1].revisions)
+
+
+
+fs.writeFileSync("analysis" + 1 + ".html", construct.construct(fileToAnalyse, si, ei, array), 'utf8');
+
+
+
+/*
+sessionPlacePairs.forEach((pair)=>{
+    construct
+
+
+})*/
+
+
+
+//crude test of same time.
+function sameTime(s, ss){
+    return ss.et >= s.st && ss.st <= s.et
+}
+
+function samePlace(s, ss){
+    return ss.ei >= s.si && ss.si <= s.ei
+}
+
+
+
+
+/*
+
+const d3n = new D3Node({}); // initializes D3 with container element
 const d3 = d3n.d3;
 var viewBoxWidth = 800
 var viewBoxHeight = 400
@@ -147,6 +214,9 @@ let svg = d3n.createSVG(viewBoxWidth, viewBoxHeight);
   //svg.attr("viewBox", "0 0 " + viewBoxWidth + " " + viewBoxHeight);
 
 for(var u in users){
+
+
+    /*
     var sessions = users[u].sessions
     svg.append("g").selectAll("rect")
     .data(sessions)
@@ -167,10 +237,10 @@ for(var u in users){
     })
     .attr("stroke", "white")
     .attr("stroke-width", 2)
-    .attr("fill", users[u].c)   
-}
+    .attr("fill", users[u].c)   */
+//}
 
-fs.writeFileSync('session-collaboration.html', d3n.html());
+//fs.writeFileSync('session-collaboration.html', d3n.html());
 
 
 /*
