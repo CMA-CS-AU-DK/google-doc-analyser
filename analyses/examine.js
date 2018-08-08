@@ -66,7 +66,7 @@ function ds(rev) {
     
     //addRevisionToChunk(rev, [rev[0].si, rev[0].ei]);
 }
-console.log(iss, noot)
+
 
 function mlti(rev) {
 
