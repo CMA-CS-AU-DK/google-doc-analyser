@@ -23,6 +23,77 @@ function getDeleted(sorted, count){
     count = count || -1;
     var inserts = []
     var deletes = []
+
+    
+    var deletes  =  revisions.filter((r)=>{
+        if(r[0].ty === "is"){
+            return is(r)
+        } else if(r[0].ty === "ds"){
+            return ds(r)
+        } else if(r[0].ty === "mlti"){
+            return mlti(r)
+        }
+        
+        return
+    })
+
+    function mlti(rev) {
+
+        var mts = rev[0].mts;
+       
+        for (var i = 0, n = mts.length; i < n; i++) {
+            var r = mts[i]
+            var nr = [r, rev[1],rev[2],rev[3],rev[4], rev[5],rev[6],rev[7]]
+    
+            if (r.ty === "is") {
+                //note -- this can have an as in front of it!
+                return is(nr)
+            } else if (r.ty === "ds") {
+                return ds(nr)
+            } else if (r.ty === "mlti") {
+                return mlti(nr)
+            }
+        }
+    }
+
+    function is(rev){
+        var s = rev[0].s;
+        var ibi = rev[0].ibi-1   
+    
+        var r = {
+            si:ibi,
+            ei:ibi+s.length,
+            text: s,
+            user: rev[2],
+            revision: rev[3]
+        }
+ 
+        for (var i = 0, n = s.length; i < n; i++) {
+            var r = {
+                si:ibi,
+                ei:ibi+1,
+                text: s[i],
+                user: rev[2],
+                revision: rev[3]
+            }
+            
+            inserts.splice(ibi + i - 1, 0, r)
+        }
+        return false;
+    }
+
+    function ds(rev){
+        return true;
+    }
+    /*
+    if(sorted){
+        deletes.sort((a, b)=>{
+            return ((a.text.length === b.text.length) ? 0 : ((b.text.length > a.text.length) ? 1 : -1));
+        })
+    }*/
+
+    return count === -1 ? deletes : deletes.slice(0, count)
+    /*
     iterateRevisions(0, revisions.length, (rev)=>{
         var s = rev[0].s;
         var ibi = rev[0].ibi-1   
@@ -81,10 +152,14 @@ function getDeleted(sorted, count){
     }
 
     return count === -1 ? deletes : deletes.slice(0, count)
+    */
 }
 
 
 function iterateRevisions(startIndex, endIndex, insertFunc, deleteFunc){
+
+   
+
     for (var i = startIndex, n = endIndex; i < n; i++) {
         var r = revisions[i];
     

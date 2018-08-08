@@ -178,6 +178,5 @@ module.exports.getRevisions = function(file){
         console.log("done with analysis")
         return [paragraphs, deadParagraphs]
         
-
     
 }

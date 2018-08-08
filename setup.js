@@ -51,7 +51,36 @@ function addMenuItems() {
 function download() {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         chrome.tabs.sendMessage(tabs[0].id, { request: "data" }, function (response) {
-            var blob = new Blob([JSON.stringify(response, null, 4)], {type : 'application/json'});
+            var revs = response.revisions;
+            for (var i = 0, n = revs.length; i < n; i++) {
+                var r = revs[i]
+                r = r.slice(0, 6)
+                if(r[0].ty === "mlti"){
+                    for(var k in r[0].mts){
+                        var m = r[0].mts[k]
+                        
+                        if(m.ty === "mlti"){
+                            for(var j in m.mts){
+                                var mm = m.mts[j]
+                                
+                                if(!(mm.ty === "as" && mm.st === "paragraph") && !(mm.ty === "as" && mm.st === "heading") && mm.ty !== "ds" && mm.ty !== "is"){
+                                    delete m.mts[j]
+                                } else if(mm.hasOwnProperty("sm")){
+                                    
+                                    delete mm["sm"]
+                                }
+                            }
+                        } else if(!(m.ty === "as" && m.st === "paragraph") && !(m.ty === "as" && m.st === "heading") && m.ty !== "ds" && m.ty !== "is"){
+                            delete r[0].mts[k]
+                        } else if(m.hasOwnProperty("sm")){
+                            delete m["sm"]
+                        }
+                    }
+                }
+            }
+
+
+            var blob = new Blob([JSON.stringify(response, null, 4)], { type: 'application/json' });
             var url = URL.createObjectURL(blob);
             chrome.downloads.download({
                 url: url,
