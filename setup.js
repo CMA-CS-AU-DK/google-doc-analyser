@@ -46,46 +46,75 @@ function addMenuItems() {
         "contexts": ["browser_action"],
         "onclick": download
     });
+    chrome.contextMenus.create({
+        "id": "itm2",
+        "title": "Analyse Revisions",
+        "type": "normal",
+        "contexts": ["browser_action"],
+        "onclick": analyse
+    });
 };
 
-function download() {
+function analyse(){
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, { request: "data" }, function (response) {
-            var revs = response.revisions;
-            for (var i = 0, n = revs.length; i < n; i++) {
-                var r = revs[i]
-                r = r.slice(0, 6)
+        chrome.tabs.create({ url:  "client/analyse.html?tabid="+tabs[0].id}, function(tab){
+             
+        });
+    })
+}
+
+function getData(callback){
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, { request: "data" }, function (data) {
+            var response = {}
+            response.title = data.title;
+            response.users = data.users;
+            response.revisions = []
+            for (var i = 0, n = data.revisions.length; i < n; i++) {
+                var r = data.revisions[i]
+                r = r.slice(0,4)
+
+                
                 if(r[0].ty === "mlti"){
+                    let ops = []
                     for(var k in r[0].mts){
-                        var m = r[0].mts[k]
-                        
+                        var m = r[0].mts[k];
                         if(m.ty === "mlti"){
                             for(var j in m.mts){
-                                var mm = m.mts[j]
-                                
-                                if(!(mm.ty === "as" && mm.st === "paragraph") && !(mm.ty === "as" && mm.st === "heading") && mm.ty !== "ds" && mm.ty !== "is"){
-                                    delete m.mts[j]
-                                } else if(mm.hasOwnProperty("sm")){
+                                var mm = m.mts[j];
+                                if((mm.ty === "as" && mm.st === "paragraph") || (mm.ty === "as" && mm.st === "heading") || mm.ty === "ds" || mm.ty === "is"){
                                     
-                                    delete mm["sm"]
+                                    if(mm.hasOwnProperty("sm")){
+                                        delete mm["sm"]
+                                    }
+                                    ops.push(mm)
                                 }
                             }
-                        } else if(!(m.ty === "as" && m.st === "paragraph") && !(m.ty === "as" && m.st === "heading") && m.ty !== "ds" && m.ty !== "is"){
-                            delete r[0].mts[k]
-                        } else if(m.hasOwnProperty("sm")){
-                            delete m["sm"]
+                        } else if((m.ty === "as" && m.st === "paragraph") || (m.ty === "as" && m.st === "heading") || m.ty === "ds" || m.ty === "is"){
+                            if(m.hasOwnProperty("sm")){
+                                delete m["sm"]
+                            }
+                            ops.push(m)
                         }
                     }
+                    
+                    r[0].mts = ops
                 }
+                response.revisions.push(r)
             }
 
+            callback(response)
+        });
+    });
+}
 
-            var blob = new Blob([JSON.stringify(response, null, 4)], { type: 'application/json' });
+function download() {
+    getData(function(data){
+        var blob = new Blob([JSON.stringify(data, null, 4)], { type: 'application/json' });
             var url = URL.createObjectURL(blob);
             chrome.downloads.download({
                 url: url,
-                filename: response.title + ".json"
-            });
+                filename: data.title + ".json"
         });
     });
 }

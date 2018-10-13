@@ -1,209 +1,173 @@
-let para = require("./paragraph.js");
-const file = "../data/Thesislicious.json";
+
+const file = "data/reworked.json";
+const folder = "reworked"
 //const file = "../data/ReworkedFramework.json";
+var l = file.split("/")
+var saveName = l[l.length-1].replace(".json","")
 const fs = require("fs");
 let data = JSON.parse(fs.readFileSync(file, 'utf8'));
-
-
 const jsdom = require("jsdom");
-const {
-    JSDOM
-} = jsdom;
+const { JSDOM } = jsdom;
+const dom = new JSDOM(`<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script></head><body><div id="content"></div><script src="../base/main.js"></script></body></html>`);
+var document = dom.window.document
 
-let users = data.users;
-let revs = data.revisions;
+var jsData = `var revisionData = ${JSON.stringify(data)}`
 
-var arr = para.getRevisions(file)
-var paragraphs = arr[0]
-var deadParagraphs = arr[1]
+if (!fs.existsSync(folder)){
+    fs.mkdirSync(folder);
+}
 
-console.log(paragraphs.length)
-/*
-var collab = []
-var session;
-for (var i = 0, n = paragraphs.length; i < n; i++) {
-    if(paragraphs[i].characters.length > 10){
-        for (var j = 0, k = paragraphs[i].revisions.length; j < k; j++) {
-            var rid = paragraphs[i].revisions[j]
-            var r = revs[rid];
-            if (!session) {
-                session = {
-                    users: [r[2]],
-                    st: r[1],
-                    et: r[1],
-                    sr: r[3],
-                    er: r[3],
-                    revisions: [r]
-                }
-            } else {
-    
-                if (r[1] > (session.et + 1000 * 60 * 15)) { //we define a session as 15 minutes similarly to DocuViz assumption about 15 minutes as a simultanious work interval
-                    if (session.users.length > 1) {
-                        collab.push(session)
-                    }
-    
-                    session = {
-                        users: [r[2]],
-                        st: r[1],
-                        et: r[1],
-                        sr: r[3],
-                        er: r[3],
-                        revisions: [r]
-                    }
-                } else {
-                    if (session.users.indexOf(r[2]) === -1) {
-                        session.users.push(r[2])
-                    }
-                    session.et = r[1];
-                    session.er = r[3];
-                    session.revisions.push(r);
-                }
+var snapshots = analyseData(data)
+buildPages(snapshots)
+
+
+fs.writeFileSync(folder+"/"+saveName+".data.js", jsData)
+
+fs.writeFileSync(folder+"/"+saveName+".html", document.documentElement.outerHTML)
+
+function analyseData(data) {
+    let revisions = data.revisions
+    let snapshots = []
+    characters = ""
+
+    for (var i = 0, n = revisions.length; i < n; i++) {
+        let revision = revisions[i];
+        let t = revision[0].ty
+
+        if (t === "is") {
+            is(revision)
+        } else if (t === "ds") {
+            ds(revision)
+        } else if (t === "mlti") {
+            mlti(revision)
+        }
+    }
+
+    function is(revision) {
+        let s = revision[0].s;
+        let ibi = revision[0].ibi - 1
+
+        characters = stringSplice(characters, ibi, 0, s)
+        analyze(revision)
+    }
+
+    function ds(revision) {
+        let si = revision[0].si - 1;
+        let ei = revision[0].ei - 1;
+        let len = ei - si + 1;
+        characters = stringSplice(characters, si, len)
+        analyze(revision)
+    }
+
+    function mlti(revision) {
+
+        var mts = revision[0].mts;
+
+        for (var i = 0, n = mts.length; i < n; i++) {
+
+            let r = mts[i]
+
+            let nr = [r, revision[1], revision[2], revision[3]]
+            if (!r) {
+                continue;
             }
-            //we need to push the final revision to the session stack
-            if (i === n - 1) {
-                session.revisions.push(r);
-                if (session.users.length > 1) {
-                    var p = {
-                        paragraph: paragraphs[i],
-                        session:session
-                    }
-                    collab.push(p)
-                }
+
+            if (r.ty === "is") {
+                is(nr)
+            } else if (r.ty === "ds") {
+                ds(nr)
+            } else if (r.ty === "mlti") {
+                mlti(nr)
             }
         }
     }
+
+    function analyze(revision) {
+        var snapshot = {
+            text: characters,
+            revision: revision[3]
+        }
+        snapshots.push(snapshot)
     }
-    for (var j = 0, k = paragraphs[i].revisions.length; j < k; j++) {
-        var rid = paragraphs[i].revisions[j]
-        var r = revs[rid];
-        if (!session) {
-            session = {
-                users: [r[2]],
-                st: r[1],
-                et: r[1],
-                sr: r[3],
-                er: r[3],
-                revisions: [r]
-            }
-        } else {
 
-            if (r[1] > (session.et + 1000 * 60 * 15)) { //we define a session as 15 minutes similarly to DocuViz assumption about 15 minutes as a simultanious work interval
-                if (session.users.length > 1) {
-                    collab.push(session)
-                }
+    //https://stackoverflow.com/a/21350614
+    function stringSplice(str, index, count, add) {
+        return str.slice(0, index) + (add || "") + str.slice(index + count);
+    }
 
-                session = {
-                    users: [r[2]],
-                    st: r[1],
-                    et: r[1],
-                    sr: r[3],
-                    er: r[3],
-                    revisions: [r]
-                }
-            } else {
-                if (session.users.indexOf(r[2]) === -1) {
-                    session.users.push(r[2])
-                }
-                session.et = r[1];
-                session.er = r[3];
-                session.revisions.push(r);
-            }
-        }
-        //we need to push the final revision to the session stack
-        if (i === n - 1) {
-            session.revisions.push(r);
-            if (session.users.length > 1) {
-                var p = {
-                    paragraph: paragraphs[i],
-                    session:session
-                }
-                collab.push(p)
-            }
-        }
+    return snapshots;
+}
+
+function buildPages(snaps){
+    var last = snaps[snaps.length-1]
+    var paragraphs = last.text.match(/([^\n]+\n?|\n)/g)
+    page = document.querySelector("#content")
+
+    for(var i = 0, n = paragraphs.length; i < n; i++){
+        
+        var el = document.createElement("p");
+        el.innerHTML = paragraphs[i];
+       
+
+        page.appendChild(el)
     }
 }
 
-
-
-console.log(collab)
-/*
-
-var sessions = []
-paragraphs.forEach((p)=>{
-    
-    var session;
-    for(var i = 0, n = p.revisions.length; i < n;i++){
-        var rid = p.revisions[i]
-        var r = revs[rid];
-        if (!session) {
-
-            session = {
-                st: r[1],
-                et: r[1],
-                sr: r[3],
-                er: r[3],
-                revisions: [r]
-            }
-        } else {
-    
-            if (r[1] > (session.et + 1000 * 60 * 15)) { //we define a session as 15 minutes similarly to DocuViz assumption about 15 minutes as a simultanious work interval
-                sessions.push(session)
-                session = {
-                    st: r[1],
-                    et: r[1],
-                    sr: r[3],
-                    er: r[3],
-                    revisions: [r]
-                }
-            } else {
-                session.et = r[1];
-                session.er = r[3];
-                session.revisions.push(r);
-            }
-        }
-        //we need to push the final revision to the session stack
-        if (i === n-1) {
-            session.revisions.push(r);
-            sessions.push(session)
-        }
+//https://www.garysieling.com/blog/javascript-function-find-overlap-two-strings
+function findOverlap(a, b) {
+    if (b.length === 0) {
+      return "";
     }
-})
+   
+    if (a.endsWith(b)) {
+      return b;
+    }
+   
+    if (a.indexOf(b) >= 0) {
+      return b;
+    }
+   
+    return findOverlap(a, b.substring(0, b.length - 1));
+  }
 
-var sametimeplace = []
+  //https://stackoverflow.com/a/36566052
+  function similarity(s1, s2) {
+    var longer = s1;
+    var shorter = s2;
+    if (s1.length < s2.length) {
+      longer = s2;
+      shorter = s1;
+    }
+    var longerLength = longer.length;
+    if (longerLength == 0) {
+      return 1.0;
+    }
+    return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
+  }
 
-sessions.forEach((s)=>{
-    s.users = []
-    s.revisions.forEach((r)=>{
-        if(s.users.indexOf(r[2]) === -1){
-            s.users.push(r[2])
+  function editDistance(s1, s2) {
+    s1 = s1.toLowerCase();
+    s2 = s2.toLowerCase();
+  
+    var costs = new Array();
+    for (var i = 0; i <= s1.length; i++) {
+      var lastValue = i;
+      for (var j = 0; j <= s2.length; j++) {
+        if (i == 0)
+          costs[j] = j;
+        else {
+          if (j > 0) {
+            var newValue = costs[j - 1];
+            if (s1.charAt(i - 1) != s2.charAt(j - 1))
+              newValue = Math.min(Math.min(newValue, lastValue),
+                costs[j]) + 1;
+            costs[j - 1] = lastValue;
+            lastValue = newValue;
+          }
         }
-    });
-    
-    if(s.users.length > 1){
-        sametimeplace.push(s)
+      }
+      if (i > 0)
+        costs[s2.length] = lastValue;
     }
-})
-
-const DOM = new JSDOM(`<!DOCTYPE html><body></body></html>`);
-    var document = DOM.window.document
-    var wrap = document.createElement("div")
-    wrap.setAttribute("style", "margin:50px;white-space: pre-wrap;")
-    wrap.id = "document";
-    document.body.appendChild(wrap)
-
-    
-    
-for(var i = 0, n = sametimeplace.length; i < n; i++){
-    var session = sametimeplace[i]
-    console.log(session.characters)
-    
-
-
-
-    for(var j = 0, k = session.revisions.length; j < k; j++){
-
-        var r = session.revisions[j]
-    }
-
-    //fs.writeFileSync("analysis" + i + ".html", document.documentElement.outerHTML, 'utf8');
-}*/
+    return costs[s2.length];
+  }

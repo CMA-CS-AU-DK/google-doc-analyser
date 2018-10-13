@@ -1,0 +1,68 @@
+<html>
+
+<head>
+    <script src="js/d3/d3.js"></script>
+    <script src="js/analyse.js"></script>
+    <style>
+
+        html, body {
+            margin:0px auto;
+        }
+
+        .page {
+            margin: 50px 40px auto;
+            text-align: center;
+            width: 816px;
+            height: 1056px;
+            border: 1px solid #666;
+            cursor:default;
+        }
+
+        #content {
+            margin:102px 96px;
+            text-align: left;
+            font-family: Arial;
+            font-weight: normal;
+            font-size: 13px;
+        
+        }
+
+        #content p {
+            overflow-wrap: break-word;
+            
+        }
+
+        #content p.highlight {
+            background:lightblue;
+        }
+
+        #info {
+            width:300px;
+            position:absolute;
+            left:900px;
+            top:50px;
+            display: none;
+            border: 1px solid black;
+            padding:10px;
+        }
+
+        #info .revision {
+            margin: 2px 5px;
+            cursor:default;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="page">
+        <div id="content">
+
+        </div>
+    </div>
+    <div id="info">
+
+    </div>
+</body>
+
+</html>
