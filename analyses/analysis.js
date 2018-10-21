@@ -1,36 +1,106 @@
 
-const file = "data/reworked.json";
-const folder = "reworked"
+const file = "data/Thesislicious.json";
+const folder = "Thesislicious"
 //const file = "../data/ReworkedFramework.json";
 var l = file.split("/")
-var saveName = l[l.length-1].replace(".json","")
+var saveName = l[l.length - 1].replace(".json", "")
 const fs = require("fs");
 let data = JSON.parse(fs.readFileSync(file, 'utf8'));
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
-const dom = new JSDOM(`<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script></head><body><div id="content"></div><script src="../base/main.js"></script></body></html>`);
+
+const dom = new JSDOM(`<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script></head><body><div id="content"></div><div id="info"></div><script src="../base/main.js"></script></body></html>`);
 var document = dom.window.document
 
-var jsData = `var revisionData = ${JSON.stringify(data)}`
+//var snapshots = analyseData(data)
+console.log("before data")
+var result = analyseRevisions(data);
+console.log("after data")
+var characters = result.characters;
+var deletes = result.deletes
 
-if (!fs.existsSync(folder)){
+var jsData = `var revisionData = ${JSON.stringify(data, null, 4)}`
+
+if (!fs.existsSync(folder)) {
     fs.mkdirSync(folder);
 }
+page = document.querySelector("#content")
+var paragraphStart = 0
 
-var snapshots = analyseData(data)
-buildPages(snapshots)
+
+//I need to append it to file (appendFileSync method)
+var html = `<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script></head><body><div id="content">`
+
+fs.writeFileSync(folder + "/" + saveName + ".html", html)
 
 
-fs.writeFileSync(folder+"/"+saveName+".data.js", jsData)
+for (var i = 0, n = characters.length; i < n; i++) {
+    var o = characters[i]
+    if (o.character.match(/\n/) || i === n - 1) {
+        
+        //var el = document.createElement("p")
+        var sectionRevisions = [o.revision]
+        var spans = []
 
-fs.writeFileSync(folder+"/"+saveName+".html", document.documentElement.outerHTML)
+        for (var j = paragraphStart, k = i; j < k; j++) {
+            var oo = characters[j]
+            
+            if( sectionRevisions.indexOf(oo.revision) === -1){
+                sectionRevisions.push(oo.revision)
+            }
+            
+            var oel = `<span class="revision" data-revision="${oo.revision}">${oo.character}</span>`;
+            spans.push(oel);
+            for (var l = 0, m = deletes.length; l < m; l++) {
+                var d = deletes[l]
+                if (d.revision === o.revision || (d.revision > o.revision && (j === k - 1 || d.revision < characters[j + 1].revision))) {
+                    
+                    if( sectionRevisions.indexOf(d.revision) === -1){
+                        sectionRevisions.push(d.revision)
+                    }
 
-function analyseData(data) {
+                    if( sectionRevisions.indexOf(d.delete) === -1){
+                        sectionRevisions.push(d.delete)
+                    }
+                    var del = '<span class="revision deleted" data-revision="'+d.delete+'" data-deleted="'+d.revision+'">'+d.character+'</span>';
+
+                    spans.push(del)
+                    break;
+                }
+            }
+        }
+        
+        paragraphStart = i+1
+        var fel = `<p data-revisions="${JSON.stringify(sectionRevisions)}">`
+        //fs.writeFileSync(folder + "/" + saveName + ".html", html)
+        fs.appendFileSync(folder + "/" + saveName + ".html", fel)
+        for(var j = 0, k = spans.length; j < k; j++){
+            fs.appendFileSync(folder + "/" + saveName + ".html", spans[j])
+        }
+
+        fs.appendFileSync(folder + "/" + saveName + ".html", "</p>")
+    }
+}
+
+var end = '</div><div id="info"></div><script src="../base/main.js"></script></body></html>'
+fs.appendFileSync(folder + "/" + saveName + ".html", end)
+//var fakeDOM = `<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script></head><body><div id="content">${html}</div><div id="info"></div><script src="../base/main.js"></script></body></html>`;
+
+//buildDOM(snapshots)
+
+//buildPages(snapshots)
+
+
+fs.writeFileSync(folder + "/" + saveName + ".data.js", jsData)
+
+
+function analyseRevisions(data) {
     let revisions = data.revisions
-    let snapshots = []
-    characters = ""
-
+    var characters = []
+    var deletes = []
+    
     for (var i = 0, n = revisions.length; i < n; i++) {
+        console.log("Revision " + i + " total: " + n)
         let revision = revisions[i];
         let t = revision[0].ty
 
@@ -46,17 +116,25 @@ function analyseData(data) {
     function is(revision) {
         let s = revision[0].s;
         let ibi = revision[0].ibi - 1
-
-        characters = stringSplice(characters, ibi, 0, s)
-        analyze(revision)
+        for (var j = 0, m = s.length; j < m; j++) {
+            var c = {
+                character: s[j],
+                revision: revision[3]
+            }
+            characters.splice(ibi + j, 0, c)
+        }
     }
 
     function ds(revision) {
         let si = revision[0].si - 1;
         let ei = revision[0].ei - 1;
         let len = ei - si + 1;
-        characters = stringSplice(characters, si, len)
-        analyze(revision)
+        var dels = characters.splice(si, len)
+        for (var j = 0, m = dels.length; j < m; j++) {
+            var d = dels[j]
+            d.delete = revision[3]
+            deletes.push(d)
+        }
     }
 
     function mlti(revision) {
@@ -82,92 +160,5 @@ function analyseData(data) {
         }
     }
 
-    function analyze(revision) {
-        var snapshot = {
-            text: characters,
-            revision: revision[3]
-        }
-        snapshots.push(snapshot)
-    }
-
-    //https://stackoverflow.com/a/21350614
-    function stringSplice(str, index, count, add) {
-        return str.slice(0, index) + (add || "") + str.slice(index + count);
-    }
-
-    return snapshots;
+    return { characters: characters, deletes: deletes }
 }
-
-function buildPages(snaps){
-    var last = snaps[snaps.length-1]
-    var paragraphs = last.text.match(/([^\n]+\n?|\n)/g)
-    page = document.querySelector("#content")
-
-    for(var i = 0, n = paragraphs.length; i < n; i++){
-        
-        var el = document.createElement("p");
-        el.innerHTML = paragraphs[i];
-       
-
-        page.appendChild(el)
-    }
-}
-
-//https://www.garysieling.com/blog/javascript-function-find-overlap-two-strings
-function findOverlap(a, b) {
-    if (b.length === 0) {
-      return "";
-    }
-   
-    if (a.endsWith(b)) {
-      return b;
-    }
-   
-    if (a.indexOf(b) >= 0) {
-      return b;
-    }
-   
-    return findOverlap(a, b.substring(0, b.length - 1));
-  }
-
-  //https://stackoverflow.com/a/36566052
-  function similarity(s1, s2) {
-    var longer = s1;
-    var shorter = s2;
-    if (s1.length < s2.length) {
-      longer = s2;
-      shorter = s1;
-    }
-    var longerLength = longer.length;
-    if (longerLength == 0) {
-      return 1.0;
-    }
-    return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
-  }
-
-  function editDistance(s1, s2) {
-    s1 = s1.toLowerCase();
-    s2 = s2.toLowerCase();
-  
-    var costs = new Array();
-    for (var i = 0; i <= s1.length; i++) {
-      var lastValue = i;
-      for (var j = 0; j <= s2.length; j++) {
-        if (i == 0)
-          costs[j] = j;
-        else {
-          if (j > 0) {
-            var newValue = costs[j - 1];
-            if (s1.charAt(i - 1) != s2.charAt(j - 1))
-              newValue = Math.min(Math.min(newValue, lastValue),
-                costs[j]) + 1;
-            costs[j - 1] = lastValue;
-            lastValue = newValue;
-          }
-        }
-      }
-      if (i > 0)
-        costs[s2.length] = lastValue;
-    }
-    return costs[s2.length];
-  }

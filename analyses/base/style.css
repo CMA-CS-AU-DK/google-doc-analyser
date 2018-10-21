@@ -4,15 +4,6 @@ body, html {
     margin:0px auto;
 }
 
-.page {
-    margin: 50px 40px auto;
-    text-align: center;
-    width: 816px;
-    height: 1056px;
-    border: 1px solid #666;
-    cursor:default;
-}
-
 #content {
     margin: 50px;
     width: 816px;
@@ -22,6 +13,11 @@ body, html {
     font-weight: normal;
     font-size: 13px;
     border:1px solid black;
+    box-sizing: border-box;
+}
+
+#content .revision.deleted{
+    display:none;
 }
 
 #content p {
@@ -31,4 +27,19 @@ body, html {
 
 #content p.highlight {
     background:lightblue;
+}
+
+#info {
+    width:300px;
+    position:absolute;
+    left:900px;
+    top:50px;
+    display: none;
+    border: 1px solid black;
+    padding:10px;
+}
+
+#info .revision {
+    margin: 2px 5px;
+    cursor:default;
 }
