@@ -1,6 +1,6 @@
 
-const file = "data/Thesislicious.json";
-const folder = "Thesislicious"
+const file = "data/Rapportscratch.json";
+const folder = "Rapportscratch"
 //const file = "../data/ReworkedFramework.json";
 var l = file.split("/")
 var saveName = l[l.length - 1].replace(".json", "")
@@ -9,7 +9,7 @@ let data = JSON.parse(fs.readFileSync(file, 'utf8'));
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 
-const dom = new JSDOM(`<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script></head><body><div id="content"></div><div id="info"></div><script src="../base/main.js"></script></body></html>`);
+const dom = new JSDOM(`<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script></head><body><div id="visuals"></div><div id="content" class="page"></div><div id="slices" class="page"></div><script src="../base/main.js"></script></body></html>`);
 var document = dom.window.document
 
 //var snapshots = analyseData(data)
@@ -29,7 +29,7 @@ var paragraphStart = 0
 
 
 //I need to append it to file (appendFileSync method)
-var html = `<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script></head><body><div id="content">`
+var html = `<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script><script src="../base/d3.min.js"></script></head><body><div id="vis"></div><div id="content" class="page">`
 
 fs.writeFileSync(folder + "/" + saveName + ".html", html)
 
@@ -71,7 +71,7 @@ for (var i = 0, n = characters.length; i < n; i++) {
         }
         
         paragraphStart = i+1
-        var fel = `<p data-revisions="${JSON.stringify(sectionRevisions)}">`
+        var fel = `<p>`
         //fs.writeFileSync(folder + "/" + saveName + ".html", html)
         fs.appendFileSync(folder + "/" + saveName + ".html", fel)
         for(var j = 0, k = spans.length; j < k; j++){
@@ -82,7 +82,7 @@ for (var i = 0, n = characters.length; i < n; i++) {
     }
 }
 
-var end = '</div><div id="info"></div><script src="../base/main.js"></script></body></html>'
+var end = '</div><div id="slices" class="page"><div id="infobox"></div></div><script src="../base/main.js"></script></body></html>'
 fs.appendFileSync(folder + "/" + saveName + ".html", end)
 //var fakeDOM = `<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script></head><body><div id="content">${html}</div><div id="info"></div><script src="../base/main.js"></script></body></html>`;
 

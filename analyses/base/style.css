@@ -4,16 +4,38 @@ body, html {
     margin:0px auto;
 }
 
+#vis {
+    position: fixed;
+    top:0px;
+    width: 100%;
+    height: 150px;
+    text-align:center;
+    background:white;
+    padding-bottom:25px;
+    display:none;
+
+}
+
+.page {
+    margin: 50px 50px auto;
+    vertical-align: top;
+    display:inline-block;
+    width: 816px;
+    height: 1123px;
+    overflow-x:hidden;
+}
+
 #content {
-    margin: 50px;
     width: 816px;
     padding:102px 96px;
+    
     text-align: left;
     font-family: Arial;
     font-weight: normal;
     font-size: 13px;
     border:1px solid black;
     box-sizing: border-box;
+    
 }
 
 #content .revision.deleted{
@@ -21,22 +43,28 @@ body, html {
 }
 
 #content p {
-    overflow-wrap: break-word;
-    
+    display:block;
+    margin:0px;
+    min-height:13pt;
+    cursor: pointer;
 }
 
 #content p.highlight {
     background:lightblue;
 }
 
-#info {
+#infobox {
     width:300px;
     position:absolute;
-    left:900px;
+    left:1800px;
     top:50px;
-    display: none;
     border: 1px solid black;
     padding:10px;
+}
+
+#infobox .rev{
+    margin-left:5px;
+    font-size: 80%;
 }
 
 #info .revision {
