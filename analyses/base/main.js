@@ -10,8 +10,7 @@ var lastDocumentRevision = new Date(revisions[revisions.length - 1][1]).toLocale
 var documentStart = revisions[0][1]
 var documentEnd = revisions[revisions.length - 1][1]
 
-var colors = ['#b35806', '#e08214', '#fdb863', '#fee0b6', '#d8daeb', '#b2abd2', '#8073ac', '#542788']
-var d3Colors = d3["schemePaired"]
+var d3Colors = ["#3377aa", "#228833","#ccbb44", "#ee6677","#aa3377"]
 
 /*
     TODO: Document information above the document
@@ -19,6 +18,24 @@ var d3Colors = d3["schemePaired"]
 */
 
 //compression time is not considering sequential aspects of edits --> a b c vs. b c a
+
+setupBaseInformation()
+
+function setupBaseInformation(){
+    var base = document.querySelector(".infobar#base")
+    base.innerHTML = `<b>Document details</b><br>Title: ${revisionData.title}<br>Authors:`
+    console.log(users)
+    for(var k in users){
+        var index = Object.keys(users).indexOf(k);
+        let u = users[k]
+        base.innerHTML += `<span style="color:${d3Colors[index]};">${u.name === "" ? "anonymous" : u.name },</span>`
+    }
+    base.innerHTML += `<br>Total revisions: ${revisions.length}<br>First revision date: ${new Date(documentStart).toLocaleString()}, Last revision date: ${new Date(documentEnd).toLocaleString()}`
+    base.innerHTML += `<div id="paragraphDetail"></div>`
+}
+
+
+
 function compressRevisions(revisions) {
 
     var revs = []
@@ -102,28 +119,6 @@ function mlti(rev) {
     return revs
 }
 
-//all
-function analyseRevisions() {
-    var paragraphs = document.querySelectorAll("p")
-    for (var i = 0, n = paragraphs.length; i < n; i++) {
-        var el = paragraphs[i]
-        analyseParagraphRevisions(el)
-    }
-
-}
-
-function isFirstAuthorTheMainContributer(sec) {
-    var revs = JSON.parse(sec.dataset.revisions)
-}
-
-
-
-function cleanRevisions(revs, compression) {
-    var returnRevs = []
-    for (var i = 0, n = revs.length; i < n; i++) {
-
-    }
-}
 buildPageGraph(revisions)
 function buildPageGraph() {
     var ps = document.querySelectorAll("#content p")
@@ -159,7 +154,7 @@ function buildPageGraph() {
     var page = document.querySelector("#content")
     page.style.height = paragraphs.length*20;
     */
-    let height = paragraphs.length * 20, width = 800, margin = 0;
+    let height = paragraphs.length * 20, width = 1195, margin = 0;
     let svg = d3.select("#slices").append("svg")
         .attr("width", width + margin)
         .attr("height", height + margin)
@@ -203,23 +198,44 @@ function buildPageGraph() {
 
     svg.selectAll("g.band")
         .on("click", (d, j) => {
+            var detail = document.querySelector("#paragraphDetail");
             var el = document.querySelector("p.highlight")
             if (el) {
                 el.classList.remove("highlight")
+                detail.innerHTML = "";
             }
             var index = paragraphs[j].index
             ps[index].classList.toggle("highlight")
-
-            var info = document.querySelector("#infobox")
-            info.innerHTML = `Revisions: ${paragraphs[j].revs.length}`
-
-            for (var i = 0, n = paragraphs[j].revs.length; i < n; i++) {
-                let r = paragraphs[j].revs[i]
-
-                info.innerHTML += `<div class="rev">ID:${r[3]} - Date: ${new Date(r[1]).toLocaleString()}<br>User: ${users[r[2]].name !== "" ? users[r[2]].name : "anonymous"} Type: ${r[0].ty}</div>`
-            }
             scrollParentToChild(ps[index].parentNode, ps[index])
+            
+            var info = document.querySelector("#infobox")
+            info.innerHTML = ""
+            let start = Date.now();
+            let end = 0;
+            let a = [];
+            var rs = paragraphs[j].revs;
+
+            rs.sort(function(a,b){
+                return a[1] - b[1]
+              });
+
+            for (var i = 0, n = rs.length; i < n; i++) {
+                let r = rs[i]
+                start = r[1] <= start ? r[1] : start;
+                end = r[1] >= end ? r[1] : end;
+                var index = Object.keys(users).indexOf(r[2]);
+                if(a.indexOf(r[2]) === -1){
+                    a.push(r[2])
+                }
+                info.innerHTML += `<div class="rev" style="color:${d3Colors[index]};">ID:${r[3]} - Date: ${new Date(r[1]).toLocaleString()} User: ${users[r[2]].name !== "" ? users[r[2]].name : "anonymous"} Type: ${r[0].ty}</div>`
+            }
+            
+            detail.innerHTML = `<b>Paragraph details</b><br>Revisions: ${paragraphs[j].revs.length}, Authors: ${a.length}<br>First revision date: ${new Date(start).toLocaleString()}, Last revision date: ${new Date(end).toLocaleString()}`
         })
+}
+
+function temporalGraph(revs){
+    console.log(revs)
 }
 
 function scrollParentToChild(parent, child) {
@@ -246,148 +262,6 @@ function scrollParentToChild(parent, child) {
 
 }
 
-function buildGraph(elementRevisions) {
-
-    let revs = []
-    elementRevisions.forEach(function (c) {
-        revs.push(revisions[c])
-    })
-
-    revs = compressRevisions(revs)
-
-    let height = 150, margin = 40;
-    let width = document.querySelector("#vis").getBoundingClientRect().width - 100;
-
-    let svg = d3.select("#vis svg")
-    let group = svg.select("g")
-
-    if (!svg.node()) {
-        svg = d3.select("#vis").append("svg")
-            .attr("width", width + margin)
-            .attr("height", height + margin)
-
-        group = svg.append("g")
-            .attr("transform", "translate(" + margin + "," + margin + ")");
-    }
-    group.selectAll("rect").remove()
-
-    let x = d3.scaleTime()
-        .domain([d3.min(revs, function (r) {
-            return new Date(r.start)
-        }), d3.max(revs, function (r) {
-            return new Date(r.start)
-        })])
-        .range([0, width - margin]);
-
-    let b = d3.scaleBand()
-        .domain([d3.min(revs, function (r) {
-            return r.start
-        }), d3.max(revs, function (r) {
-            return r.start
-        })])
-        .range([0, width - margin]);
-
-    let yMin = d3.min(revs, (d) => {
-        let l = 0;
-        if (d.op === "ds") {
-            d.revs.forEach((r) => {
-                var len = r[0].si - r[0].ei === 0 ? -1 : r[0].ei - r[0].si
-                l += len;
-            })
-            d.len = l;
-        }
-
-        return l
-    })
-
-    let yMax = d3.max(revs, (d) => {
-        var l = 0;
-        if (d.op === "is") {
-            d.revs.forEach((r) => {
-                l += r[0].s.length
-            })
-            d.len = l;
-        }
-        return l
-    })
-
-    let y = d3.scaleLinear()
-        .domain([yMin, yMax])
-        .range([height - margin, 0])
-
-    group.selectAll("rect")
-        .data(revs)
-        .enter()
-        .append("rect")
-        .attr("fill", function (d) {
-            return users[d.user].color
-        })
-        .attr("x", function (d) {
-            return x(d.start)
-        })
-        .attr("width", function (d) {
-            return 3
-        })
-        .attr("y", function (d) {
-            let l = y(d.len)
-            if (d.len <= 0) {
-                l = y(d.len - d.len)
-            }
-
-            return l
-        })
-        .attr("height", function (d) {
-            return y(0) - y(Math.abs(d.len))
-        });
-
-    var xAxis = d3.axisBottom(x).tickFormat(d3.timeFormat("%Y-%m-%dT%H:%M"));;
-    var yAxis = d3.axisLeft(y)
-
-    var xGroup = group.select("g.xaxis")
-    if (!xGroup.node()) {
-        xGroup = group.append("g")
-            .attr("class", "xaxis")
-            .attr("transform", `translate(0,${height - margin})`)
-    }
-
-    xGroup.call(xAxis);
-
-    var yGroup = group.select("g.yaxis")
-    if (!yGroup.node()) {
-        yGroup = group.append("g")
-            .attr("class", "yaxis")
-            .attr("transform", `translate(${0},0)`)
-    }
-
-    yGroup.call(yAxis)
-
-}
-
-//individual
-function analyseParagraphRevisions(sec) {
-    var revs = JSON.parse(sec.dataset.revisions)
-    //we want plots per data
-    var authors = {}
-
-    var start = revs[0][1]
-    var end = revs[revs.length - 1][1]
-
-    for (var i = 0, n = revs.length; i < n; i++) {
-        let rnr = revs[i] //we add 1 because there is an index ofset in the revision numbering
-        var r = revisions[rnr - 1]
-        var u = users[r[2]]
-        //console.log(r)
-    }
-}
-
-function handleClick(e) {
-    var t = e.target
-    if (t.classList.contains("revision")) {
-        t = t.parentNode
-    }
-    var revs = JSON.parse(t.dataset.revisions)
-    //buildGraph(revs)
-}
 
 //https://www.garysieling.com/blog/javascript-function-find-overlap-two-strings
 function findOverlap(a, b) {

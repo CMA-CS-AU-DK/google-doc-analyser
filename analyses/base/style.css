@@ -21,8 +21,13 @@ body, html {
     vertical-align: top;
     display:inline-block;
     width: 816px;
-    height: 1123px;
+    /*height: 1123px;*/
+    height: 1000px;
     overflow-x:hidden;
+}
+
+#slices {
+    width:1210px;
 }
 
 #content {
@@ -53,16 +58,17 @@ body, html {
 }
 
 #infobox {
-    width:300px;
+    width:410px;
     position:absolute;
-    left:1800px;
-    top:50px;
+    right:20px;
+    height: 1180px;
+    top:10px;
     border: 1px solid black;
-    padding:10px;
+    padding:5px;
+    overflow:scroll;
 }
 
 #infobox .rev{
-    margin-left:5px;
     font-size: 80%;
 }
 
@@ -76,9 +82,18 @@ body, html {
 }
 
 #detail {
-    
+    width:1210px;
 }
 
 #base {
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size:90%;
+    padding:10px;
+    box-sizing: border-box;
+}
 
+#base #paragraphDetail {
+    margin-top: 10px;
+    border-top: 1px dashed grey;
+    padding-top: 10px;
 }
