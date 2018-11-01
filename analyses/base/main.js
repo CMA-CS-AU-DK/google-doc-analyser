@@ -155,7 +155,7 @@ function buildPageGraph() {
     var page = document.querySelector("#content")
     page.style.height = paragraphs.length*20;
     */
-    let height = paragraphs.length * 20, width = 1195, margin = 0;
+    let height = paragraphs.length * 25, width = 1195, margin = 0;
     let svg = d3.select("#slices").append("svg")
         .attr("width", width + margin)
         .attr("height", height + margin)
@@ -199,11 +199,13 @@ function buildPageGraph() {
 
     svg.selectAll("g.band")
         .on("click", (d, j) => {
-            var detail = document.querySelector("#paragraphDetail");
+            var pdetail = document.querySelector("#paragraphDetail");
+            document.querySelector("#detail").scrollTop = 0;
+
             var el = document.querySelector("p.highlight")
             if (el) {
                 el.classList.remove("highlight")
-                detail.innerHTML = "";
+                pdetail.innerHTML = "";
             }
             var index = paragraphs[j].index
             ps[index].classList.toggle("highlight")
@@ -231,13 +233,13 @@ function buildPageGraph() {
                 info.innerHTML += `<div class="rev" style="color:${d3Colors[index]};">ID:${r[3]} - Date: ${new Date(r[1]).toLocaleString()} User: ${users[r[2]].name !== "" ? users[r[2]].name : "anonymous"} Type: ${r[0].ty}</div>`
             }
 
-            detail.innerHTML = `<b>Paragraph details</b><br>Revisions: ${paragraphs[j].revs.length}, Authors: ${a.length}<br>First revision date: ${new Date(start).toLocaleString()}, Last revision date: ${new Date(end).toLocaleString()}`
+            pdetail.innerHTML = `<b>Paragraph details</b><br>Revisions: ${paragraphs[j].revs.length}, Authors: ${a.length}<br>First revision date: ${new Date(start).toLocaleString()}, Last revision date: ${new Date(end).toLocaleString()}`
             temporalGraph(paragraphs[j].revs, rs, start, end, paragraphs.length)
         })
 }
 
 function temporalGraph(revs, revsTime, start, end, elHeight) {
-    console.log(revs.length)
+
     var chunks = []
     var cu;
     var h = 1000 * 60 * 60
@@ -267,17 +269,17 @@ function temporalGraph(revs, revsTime, start, end, elHeight) {
         }
     }
 
-    let height = 300, width = 1195, margin = 0;
+    let height = (chunks.length * 2 - 1) * 25, width = 1195, margin = 0;
     let svg = d3.select(".infobar#detail svg")
     let g = svg.select("g")
     if (!svg.node()) {
         svg = d3.select(".infobar#detail").append("svg")
-            .attr("width", width + margin)
-            .attr("height", height + margin-30)
+
         g = svg.append("g")
             .attr("transform", "translate(" + margin + "," + margin + ")");
     }
-
+    svg.attr("width", width + margin)
+        .attr("height", height + margin)
     g.selectAll("g").remove()
 
     let x = d3.scaleLinear()
@@ -285,9 +287,9 @@ function temporalGraph(revs, revsTime, start, end, elHeight) {
         .range([0, width - margin])
 
     let y = d3.scaleLinear()
-        .domain([0, chunks.length])
+        .domain([0, height])
         .range([0, height])
-    
+
     function getTimeIndex(id) {
         for (var i = 0, n = revsTime.length; i < n; i++) {
             var r = revsTime[i]
@@ -298,41 +300,47 @@ function temporalGraph(revs, revsTime, start, end, elHeight) {
         return -1
     }
 
-    var c = 0;
-    for(var i = 0, n = chunks.length; i < n; i++){
-    
+    function getSpatialIndex(id) {
+        for (var i = 0, n = revs.length; i < n; i++) {
+            var r = revs[i]
+            if (r[3] === id) {
+                return i
+            }
+        }
+        return -1
+    }
+
+    var step = 0;
+    for (var i = 0, n = chunks.length; i < n; i++) {
         var gg = g.append("g").attr("class", "chunk")
         gg.selectAll("rect")
             .data(chunks[i].revs)
             .enter()
             .append("rect")
-        .attr("fill", function (d) {
-            var index = Object.keys(users).indexOf(d[2]);
-            return d3Colors[index]
-        })
-        .attr("x", function (d, j) {
-            return width / revs.length * (j+c)
-        })
-        .attr("width", function (d, j) {
-            return width / revs.length - 1
-        })
-        .attr("y", function (d) {
-            var index = getTimeIndex(d[3])
-            return y(i)
-            //return y(index) + i*height/elHeight
-        })
-        .attr("height", function (d) {
-            var offset = i !== n-1 ? 30 : 0
-            return height/n-offset
-        })
+            .attr("fill", function (d) {
+                var index = Object.keys(users).indexOf(d[2]);
+                return d3Colors[index]
+            })
+            .attr("x", function (d, j) {
+                var index = getSpatialIndex(d[3])
+                return width / revs.length * (index)
+                //return width / revs.length * (j+c)
+            })
+            .attr("width", function (d, j) {
+                return width / revs.length - 1
+            })
+            .attr("y", function (d) {
+                return y(step)
+            })
+            .attr("height", 25)
 
-        if(i !== n-1){
-            var lastIndex = chunks[i].revs.length-1
+        if (i !== n - 1) {
+            var lastIndex = chunks[i].revs.length - 1
             var last = chunks[i].revs[lastIndex]
-            var next = chunks[i+1].revs[0]
+            var next = chunks[i + 1].revs[0]
 
             var t = next[1] - last[1]
-            console.log(t)
+
             var tobj = convertMS(t)
             gg.append("rect")
                 .attr("fill", "#ece7f2")
@@ -343,44 +351,32 @@ function temporalGraph(revs, revsTime, start, end, elHeight) {
                 .attr("x", function () {
                     return 0
                 })
-                .attr("width", function (d, j) {
-                    return width
-                })
+                .attr("width", width)
                 .attr("y", function (d) {
-                    var index = getTimeIndex(last[3])
-                    return y(i)+height/n-26
-                    //return y(index) + i*height/elHeight
+                    return y(step) + 27
                 })
-                .attr("height", function (d) {
-                    return 22
-                })
+                .attr("height", 21)
 
-                gg.append("text")
+            gg.append("text")
                 .attr("x", function () {
-                    return width/2
+                    return width / 2
                 })
                 .attr("y", function (d) {
-                    var index = getTimeIndex(last[3])
-                    return y(i)+height/n-13
-                    //return y(index) + i*height/elHeight
+                    return y(step) + 38
                 })
-                .attr("width", function (d, j) {
-                    return width
-                })
-                .attr("height", function (d) {
-                    return 30
-                })
+                .attr("width", width)
+                .attr("height", 25)
                 .attr("alignment-baseline", "middle")
                 .attr("text-anchor", "middle")
-                .style("font-family","verdana")
+                .style("font-family", "verdana")
                 .style("color", "black")
                 .text(`Timespan: ${tobj.day} days, ${tobj.hour} hours and ${tobj.minute} minutes`)
 
         }
-        c+= chunks[i].revs.length
+        step +=50
     }
 
-    function convertMS( milliseconds ) {
+    function convertMS(milliseconds) {
         var day, hour, minute, seconds;
         seconds = Math.floor(milliseconds / 1000);
         minute = Math.floor(seconds / 60);

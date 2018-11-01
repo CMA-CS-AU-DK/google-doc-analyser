@@ -84,6 +84,7 @@ body, html {
 #detail {
     width:1210px;
     border:none;
+    overflow-x:hidden;
 }
 
 #base {
