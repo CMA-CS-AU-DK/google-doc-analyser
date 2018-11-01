@@ -1,7 +1,7 @@
 
-const file = "data/Rapportscratch.json";
-const folder = "Rapportscratch"
-//const file = "../data/ReworkedFramework.json";
+const file = "data/markgroup/7ReflectionConclusion.json";
+const folder = "output/markgrp"
+
 var l = file.split("/")
 var saveName = l[l.length - 1].replace(".json", "")
 const fs = require("fs");
@@ -29,7 +29,7 @@ var paragraphStart = 0
 
 
 //I need to append it to file (appendFileSync method)
-var html = `<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script><script src="../base/d3.min.js"></script></head><body><div id="vis"></div><div id="content" class="page">`
+var html = `<html><head><link rel="stylesheet" href="../../base/style.css"><script src="${saveName}.data.js"></script><script src="../../base/d3.min.js"></script></head><body><div id="base" class="infobar"></div><div id="detail" class="infobar"></div><div id="content" class="page">`
 
 fs.writeFileSync(folder + "/" + saveName + ".html", html)
 
@@ -82,14 +82,8 @@ for (var i = 0, n = characters.length; i < n; i++) {
     }
 }
 
-var end = '</div><div id="slices" class="page"><div id="infobox"></div></div><script src="../base/main.js"></script></body></html>'
+var end = '</div><div id="slices" class="page"><div id="infobox"></div></div><script src="../../base/main.js"></script></body></html>'
 fs.appendFileSync(folder + "/" + saveName + ".html", end)
-//var fakeDOM = `<html><head><link rel="stylesheet" href="../base/style.css"><script src="${saveName}.data.js"></script></head><body><div id="content">${html}</div><div id="info"></div><script src="../base/main.js"></script></body></html>`;
-
-//buildDOM(snapshots)
-
-//buildPages(snapshots)
-
 
 fs.writeFileSync(folder + "/" + saveName + ".data.js", jsData)
 

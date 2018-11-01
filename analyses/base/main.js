@@ -13,6 +13,11 @@ var documentEnd = revisions[revisions.length - 1][1]
 var colors = ['#b35806', '#e08214', '#fdb863', '#fee0b6', '#d8daeb', '#b2abd2', '#8073ac', '#542788']
 var d3Colors = d3["schemePaired"]
 
+/*
+    TODO: Document information above the document
+    TODO: Timely visualisation above the REVISION navigator
+*/
+
 //compression time is not considering sequential aspects of edits --> a b c vs. b c a
 function compressRevisions(revisions) {
 
