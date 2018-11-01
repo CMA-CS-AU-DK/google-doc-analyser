@@ -22,7 +22,7 @@ body, html {
     display:inline-block;
     width: 816px;
     /*height: 1123px;*/
-    height: 1000px;
+    height: 900px;
     overflow-x:hidden;
 }
 
@@ -77,12 +77,13 @@ body, html {
     vertical-align: top;
     display:inline-block;
     width: 816px;
-    height: 180px;
+    height: 300px;
     border:1px solid red;
 }
 
 #detail {
     width:1210px;
+    border:none;
 }
 
 #base {

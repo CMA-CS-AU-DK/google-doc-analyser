@@ -10,7 +10,7 @@ var lastDocumentRevision = new Date(revisions[revisions.length - 1][1]).toLocale
 var documentStart = revisions[0][1]
 var documentEnd = revisions[revisions.length - 1][1]
 
-var d3Colors = ["#3377aa", "#228833","#ccbb44", "#ee6677","#aa3377"]
+var d3Colors = ["#3377aa", "#228833", "#ccbb44", "#ee6677", "#aa3377"]
 
 /*
     TODO: Document information above the document
@@ -21,14 +21,14 @@ var d3Colors = ["#3377aa", "#228833","#ccbb44", "#ee6677","#aa3377"]
 
 setupBaseInformation()
 
-function setupBaseInformation(){
+function setupBaseInformation() {
     var base = document.querySelector(".infobar#base")
     base.innerHTML = `<b>Document details</b><br>Title: ${revisionData.title}<br>Authors:`
-    console.log(users)
-    for(var k in users){
+
+    for (var k in users) {
         var index = Object.keys(users).indexOf(k);
         let u = users[k]
-        base.innerHTML += `<span style="color:${d3Colors[index]};">${u.name === "" ? "anonymous" : u.name },</span>`
+        base.innerHTML += `<span style="color:${d3Colors[index]};">${u.name === "" ? "anonymous" : u.name},</span>`
     }
     base.innerHTML += `<br>Total revisions: ${revisions.length}<br>First revision date: ${new Date(documentStart).toLocaleString()}, Last revision date: ${new Date(documentEnd).toLocaleString()}`
     base.innerHTML += `<div id="paragraphDetail"></div>`
@@ -40,6 +40,7 @@ function compressRevisions(revisions) {
 
     var revs = []
     var cu
+
 
     for (var i = 0, n = revisions.length; i < n; i++) {
 
@@ -207,35 +208,240 @@ function buildPageGraph() {
             var index = paragraphs[j].index
             ps[index].classList.toggle("highlight")
             scrollParentToChild(ps[index].parentNode, ps[index])
-            
+
             var info = document.querySelector("#infobox")
             info.innerHTML = ""
             let start = Date.now();
             let end = 0;
             let a = [];
-            var rs = paragraphs[j].revs;
+            var rs = paragraphs[j].revs.slice(0);
 
-            rs.sort(function(a,b){
+            rs.sort(function (a, b) {
                 return a[1] - b[1]
-              });
+            });
 
             for (var i = 0, n = rs.length; i < n; i++) {
                 let r = rs[i]
                 start = r[1] <= start ? r[1] : start;
                 end = r[1] >= end ? r[1] : end;
                 var index = Object.keys(users).indexOf(r[2]);
-                if(a.indexOf(r[2]) === -1){
+                if (a.indexOf(r[2]) === -1) {
                     a.push(r[2])
                 }
                 info.innerHTML += `<div class="rev" style="color:${d3Colors[index]};">ID:${r[3]} - Date: ${new Date(r[1]).toLocaleString()} User: ${users[r[2]].name !== "" ? users[r[2]].name : "anonymous"} Type: ${r[0].ty}</div>`
             }
-            
+
             detail.innerHTML = `<b>Paragraph details</b><br>Revisions: ${paragraphs[j].revs.length}, Authors: ${a.length}<br>First revision date: ${new Date(start).toLocaleString()}, Last revision date: ${new Date(end).toLocaleString()}`
+            temporalGraph(paragraphs[j].revs, rs, start, end, paragraphs.length)
         })
 }
 
-function temporalGraph(revs){
-    console.log(revs)
+function temporalGraph(revs, revsTime, start, end, elHeight) {
+    console.log(revs.length)
+    var chunks = []
+    var cu;
+    var h = 1000 * 60 * 60
+
+    for (var i = 0, n = revsTime.length; i < n; i++) {
+        var r = revsTime[i]
+        if (!cu) {
+            cu = {}
+            cu.start = r[1]
+            cu.revs = [r]
+            cu.buffer = r[1]
+        } else {
+            if (r[1] > cu.start + h) {
+                let buf = cu.revs[cu.revs.length - 1][1]
+                chunks.push(cu)
+                cu = {}
+                cu.start = r[1]
+                cu.revs = [r]
+                cu.buffer = buf
+            } else {
+                cu.revs.push(r)
+            }
+        }
+
+        if (i === n - 1) {
+            chunks.push(cu)
+        }
+    }
+
+    let height = 300, width = 1195, margin = 0;
+    let svg = d3.select(".infobar#detail svg")
+    let g = svg.select("g")
+    if (!svg.node()) {
+        svg = d3.select(".infobar#detail").append("svg")
+            .attr("width", width + margin)
+            .attr("height", height + margin-30)
+        g = svg.append("g")
+            .attr("transform", "translate(" + margin + "," + margin + ")");
+    }
+
+    g.selectAll("g").remove()
+
+    let x = d3.scaleLinear()
+        .domain([0, 100])
+        .range([0, width - margin])
+
+    let y = d3.scaleLinear()
+        .domain([0, chunks.length])
+        .range([0, height])
+    
+    function getTimeIndex(id) {
+        for (var i = 0, n = revsTime.length; i < n; i++) {
+            var r = revsTime[i]
+            if (r[3] === id) {
+                return i
+            }
+        }
+        return -1
+    }
+
+    var c = 0;
+    for(var i = 0, n = chunks.length; i < n; i++){
+    
+        var gg = g.append("g").attr("class", "chunk")
+        gg.selectAll("rect")
+            .data(chunks[i].revs)
+            .enter()
+            .append("rect")
+        .attr("fill", function (d) {
+            var index = Object.keys(users).indexOf(d[2]);
+            return d3Colors[index]
+        })
+        .attr("x", function (d, j) {
+            return width / revs.length * (j+c)
+        })
+        .attr("width", function (d, j) {
+            return width / revs.length - 1
+        })
+        .attr("y", function (d) {
+            var index = getTimeIndex(d[3])
+            return y(i)
+            //return y(index) + i*height/elHeight
+        })
+        .attr("height", function (d) {
+            var offset = i !== n-1 ? 30 : 0
+            return height/n-offset
+        })
+
+        if(i !== n-1){
+            var lastIndex = chunks[i].revs.length-1
+            var last = chunks[i].revs[lastIndex]
+            var next = chunks[i+1].revs[0]
+
+            var t = next[1] - last[1]
+            console.log(t)
+            var tobj = convertMS(t)
+            gg.append("rect")
+                .attr("fill", "#ece7f2")
+                .attr("stroke", "#ece7f2")
+                .attr("stroke-width", "2")
+                .attr("stroke-dasharray", "2")
+                .attr("class", "timespan")
+                .attr("x", function () {
+                    return 0
+                })
+                .attr("width", function (d, j) {
+                    return width
+                })
+                .attr("y", function (d) {
+                    var index = getTimeIndex(last[3])
+                    return y(i)+height/n-26
+                    //return y(index) + i*height/elHeight
+                })
+                .attr("height", function (d) {
+                    return 22
+                })
+
+                gg.append("text")
+                .attr("x", function () {
+                    return width/2
+                })
+                .attr("y", function (d) {
+                    var index = getTimeIndex(last[3])
+                    return y(i)+height/n-13
+                    //return y(index) + i*height/elHeight
+                })
+                .attr("width", function (d, j) {
+                    return width
+                })
+                .attr("height", function (d) {
+                    return 30
+                })
+                .attr("alignment-baseline", "middle")
+                .attr("text-anchor", "middle")
+                .style("font-family","verdana")
+                .style("color", "black")
+                .text(`Timespan: ${tobj.day} days, ${tobj.hour} hours and ${tobj.minute} minutes`)
+
+        }
+        c+= chunks[i].revs.length
+    }
+
+    function convertMS( milliseconds ) {
+        var day, hour, minute, seconds;
+        seconds = Math.floor(milliseconds / 1000);
+        minute = Math.floor(seconds / 60);
+        seconds = seconds % 60;
+        hour = Math.floor(minute / 60);
+        minute = minute % 60;
+        day = Math.floor(hour / 24);
+        hour = hour % 24;
+        return {
+            day: day,
+            hour: hour,
+            minute: minute,
+            seconds: seconds
+        };
+    }
+    /*s
+    function getTimeIndex(id){
+        for(var i = 0, n = revsTime.length; i < n; i++){
+            var r = revsTime[i]
+            if(r[3] === id ){
+                return i
+            }
+        }
+        return -1
+    }
+    */
+
+    /*
+    g.selectAll("rect")
+        .data(revs)
+        .enter()
+        .append("rect")
+        .attr("fill", function (d) {
+            var index = Object.keys(users).indexOf(d[2]);
+            return d3Colors[index]
+        })
+        .attr("x", function (d, i) {
+            return width / revs.length * i
+        })
+        .attr("width", function (d, j) {
+            return width / revs.length - 1
+        })
+        .attr("y", function (d) {
+            var index = getTimeIndex(d[3])
+            console.log(index)
+            console.log(d)
+            return y(new Date(d[1]))
+        })
+        .attr("height", function (d) {
+            return elHeight
+        })
+
+        function getTimeIndex(id){
+            for(var i = 0, n = revsTime.length; i < n; i++){
+                var r = revsTime[i]
+                if(r[3] === id ){
+                    return i
+                }
+            }
+            return -1
+        }*/
 }
 
 function scrollParentToChild(parent, child) {
@@ -258,6 +464,8 @@ function scrollParentToChild(parent, child) {
         // scroll by offset relative to parent
         parent.scrollTop = (childRect.top + parent.scrollTop) - parentRect.top - 100
     }
+
+
 
 
 }
