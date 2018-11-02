@@ -151,11 +151,8 @@ function buildPageGraph() {
             paragraphs.push(pp)
         }
     }
-    /*
-    var page = document.querySelector("#content")
-    page.style.height = paragraphs.length*20;
-    */
-    let height = paragraphs.length * 25, width = 1195, margin = 0;
+    
+    let height = paragraphs.length * 26, width = 1195, margin = 0;
     let svg = d3.select("#slices").append("svg")
         .attr("width", width + margin)
         .attr("height", height + margin)
@@ -193,7 +190,7 @@ function buildPageGraph() {
                 return y(0) - y(i)
             })
             .attr("height", function (d) {
-                return height / paragraphs.length - 1
+                return height / paragraphs.length - 2
             })
     }
 
@@ -242,8 +239,8 @@ function temporalGraph(revs, revsTime, start, end, elHeight) {
 
     var chunks = []
     var cu;
-    var h = 1000 * 60 * 60
-
+    //var h = 1000 * 60 * 60
+    var h = 1000 * 60 * 15
     for (var i = 0, n = revsTime.length; i < n; i++) {
         var r = revsTime[i]
         if (!cu) {
@@ -268,6 +265,8 @@ function temporalGraph(revs, revsTime, start, end, elHeight) {
             chunks.push(cu)
         }
     }
+
+    //TODO ADD ANOTHER BAR
 
     let height = (chunks.length * 2 - 1) * 25, width = 1195, margin = 0;
     let svg = d3.select(".infobar#detail svg")
