@@ -1,6 +1,6 @@
 
-const file = "data/markgroup/7ReflectionConclusion.json";
-const folder = "output/markgrp"
+const file = "data/ECSCWDemo.json";
+const folder = "output/ECSCWDemo"
 
 var l = file.split("/")
 var saveName = l[l.length - 1].replace(".json", "")
