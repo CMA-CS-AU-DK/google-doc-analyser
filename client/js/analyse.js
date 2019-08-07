@@ -1,124 +1,177 @@
 ; (function () {
     var url = new URL(location);
     var id = url.searchParams.get("tabid");
-    
+    //TODO: store parts of the analysis in local storage to persist across reload
+    //TODO: optimise the dom/svg generation -- same algorithm, different output.
     var snaps, revisions, characters, users;
     var documentCreated, lastDocumentRevision;
     var information;
     chrome.tabs.sendMessage(parseInt(id), { request: "data" }, function (data) {
+        
         revisions = data.revisions;
-
+        console.log(revisions)
+        var result = analyseRevisions(revisions);
+        console.log("done")
+        /*
         documentCreated = new Date(revisions[0][1]).toLocaleDateString() + " " + new Date(revisions[0][1]).toLocaleTimeString()
-        lastDocumentRevision = new Date(revisions[revisions.length-1][1]).toLocaleDateString() + " " + new Date(revisions[revisions.length-1][1]).toLocaleTimeString()
+        console.log("here2")
+        lastDocumentRevision = new Date(revisions[revisions.length - 1][1]).toLocaleDateString() + " " + new Date(revisions[revisions.length - 1][1]).toLocaleTimeString()
 
         users = data.users;
-        snaps = analyseData(data);
-        buildPages()
+        console.log(Object.keys(users).length)
+        console.log(revisions.length)
         
-
-
-        information = document.querySelector("#info")
-
-        information.addEventListener("mouseover", function(e){
-            if(e.target.classList.contains("revision")){
-                console.log(e.target)
-            }
-        })
+        console.log("getting data is done")
+        var characters = result.characters;
+        var deletes = result.deletes
+        buildPage(characters, deletes)
+        console.log("Build page is done")
+        createVisualisation()
+        addInteractivity()*/
     })
 
-    //TODO FIX PAGES
+    function buildPage(characters, deletes) {
+        var paragraphStart = 0
+        var page = document.querySelector("#content")
+        for (var i = 0, n = characters.length; i < n; i++) {
 
-    function buildPages(){
-        var last = snaps[snaps.length-1]
-        var paragraphs = last.text.match(/([^\n]+\n?|\n)/g)
-        page = document.querySelector("#content")
+            var o = characters[i]
+            if (o.c.match(/\n/) || i === n - 1) {
+                
+                //var el = document.createElement("p")
+                var sectionRevisions = [o.r]
+                var spans = []
 
-        for(var i = 0, n = paragraphs.length; i < n; i++){
-            
-            var el = document.createElement("p");
-            el.innerHTML = paragraphs[i];
-            el.addEventListener("mouseover", function(e){
-                e.target.classList.toggle("highlight")
-            })
+                for (var j = paragraphStart, k = i; j < k; j++) {
+                    var oo = characters[j]
+        
+                    var oel = `<span class="revision" data-revision="${oo.r}">${oo.c}</span>`;
+                    spans.push(oel);
 
-            el.addEventListener("mouseout", function(e){
-                e.target.classList.toggle("highlight")
-            })
-            el.addEventListener("click", handleClick)
+                    for (var l = 0, m = deletes.length; l < m; l++) {
+                        var d = deletes[l]
+                        if (d.r === o.r || (d.r > o.r && (j === k - 1 || d.r < characters[j + 1].r))) {
+                            var del = '<span class="revision deleted" data-revision="' + d.d + '" data-deleted="' + d.r + '">' + d.c + '</span>';
+                            spans.push(del)
+                            
+                            break;
+                        }
+                    }
+                }
 
-            page.appendChild(el)
+                paragraphStart = i + 1
+                var p = document.createElement("p")
+                p.innerHTML = spans.join('')
+                page.appendChild(p)
+                
+            }
         }
     }
 
-    function handleClick(e){
-        var txt = e.target.innerHTML;
+    function createVisualisation() {
+        var d3Colors = ["#3377aa", "#228833", "#ccbb44", "#ee6677", "#aa3377"];
 
-        var lastRev, snapIndex, paraIndex;
-        
-        
-        var revs = []
-        for(var i = snaps.length-1; i > 0; i-- ){
-            let s = snaps[i]
-            
-            var paras = s.text.match(/([^\n]+\n?|\n)/g)
-            if(paras.indexOf(txt) !== -1 ){
-                lastRev = s.revision;
-                snapIndex = i;
-                paraIndex = paras.indexOf(txt);
-            } else {
-                break;
-            }
-        }
+        var ps = document.querySelectorAll("#content p")
 
-        revs.unshift(lastRev)
+        var paragraphs = []
+        for (var i = 0, n = ps.length; i < n; i++) {
 
-        for(var i = snapIndex-1; i > 0; i-- ){
-            let s = snaps[i]
-            
-            var paras = s.text.match(/([^\n]+\n?|\n)/g)
-            for(var j = paras.length-1; j > 0; j--){
-                var overlap = findOverlap(txt,paras[j]);
-                if(overlap && txt.indexOf(overlap) === 0){
-                    revs.unshift(s.revision)
+            let p = ps[i]
+            let pp = {}
+            pp.index = i
+            pp.revs = []
+            pp.top = p.getBoundingClientRect().top - 20
+            pp.height = p.getBoundingClientRect().height
+            let revmirror = []
+            let spans = ps[i].querySelectorAll("span")
+
+            for (var j = 0, k = spans.length; j < k; j++) {
+                var el = spans[j]
+                let rid = el.dataset.revision
+                if (revmirror.indexOf(rid) === -1) {
+                    revmirror.push(rid)
+                    let r = revisions[rid - 1]
+                    pp.revs.push(r)
                 }
             }
+
+            if (spans.length !== 0) {
+                console.log(pp.revs)
+                paragraphs.push(pp)
+            }
         }
-
-        //now we have revisions
-        let revisionNumber = revs.length;
-        let startDate = revisions[revs[0]][1]
-        let endDate = revisions[lastRev][1]
-        let userRevisions = {}
-        let copyPaste = false;
-
         
+        let height = document.querySelector("#content").scrollHeight, width = 1000;
+        let svg = d3.select("#slices").append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .append("g")
 
-        
-        html = `Document created: ${documentCreated}<br>Last document revision: ${lastDocumentRevision}<br>Paragraph revisions count: ${revisionNumber}<br>`;
-        html += `First revision: ${new Date(startDate).toLocaleDateString() + " " + new Date(startDate).toLocaleTimeString()}<br>Last revision:  ${new Date(endDate).toLocaleDateString() + " " + new Date(endDate).toLocaleTimeString()}<br>`
-        
-        for(var i = 0, n = revs.length; i < n ; i++){
-            let r = revisions[revs[i]];
-            html += `<div class="revision" id="r_${revs[i]}" style="color:${users[r[2]].color};">${users[r[2]].name}<br>${new Date(r[1]).toLocaleDateString() + " " + new Date(r[1]).toLocaleTimeString()}</div>`
+        let x = d3.scaleLinear()
+            .domain([0, 100])
+            .range([0, width])
+
+
+        let y = d3.scaleLinear()
+            .domain([0, paragraphs.length])
+            .range([height, 0])
+
+        for (var i = 0, n = paragraphs.length; i < n; i++) {
+            let g = svg.append("g")
+                .attr("class", "band")
+            g.selectAll("rect")
+                .data(paragraphs[i].revs)
+                .enter()
+                .append("rect")
+                .attr("fill", function (d) {
+                    var index = Object.keys(users).indexOf(d[2]);
+                    return d3Colors[index]
+                })
+                .attr("x", function (d, j) {
+                    
+                    return width / paragraphs[i].revs.length * j
+                })
+                .attr("width", function (d, j) {
+                    return width / paragraphs[i].revs.length - 1
+                })
+                .attr("y", function (d, j) {
+                    if(d[0].ty === "ds"){
+                        var offset = paragraphs[i].height < 40 ? 7 : 14
+                        return paragraphs[i].top + offset
+                    } else {
+                        return paragraphs[i].top
+                    }
+                    
+                })
+                .attr("height", function (d) {
+                    var offset = paragraphs[i].height < 40 ? 7 : 14
+                    if(d[0].ty === "ds"){
+                        
+                        return paragraphs[i].height-offset
+                    } else {
+                        return paragraphs[i].height
+                    }
+                    
+                })
         }
-
-        information.innerHTML = html;
-        
-        information.style.display = "block";
     }
 
-    function findSlice(txt, compareText){
-        
-        while(txt !== compareText || txt.length !== 0){
-            txt = txt.slice(0, txt.length-1)
-        }
-        return txt.length;
+    function addInteractivity(){
+        var textPage = document.querySelector("#content")
+        var visPage = document.querySelector("#slices")
+        textPage.addEventListener("scroll", function(e){
+            visPage.scrollTop = textPage.scrollTop
+        });
+
+        visPage.addEventListener("scroll", function(e){
+            textPage.scrollTop = visPage.scrollTop
+        });
     }
 
-    function analyseData(data) {
-        let revisions = data.revisions
-        let snapshots = []
-        characters = ""
+    function analyseRevisions(revisions) {
+
+        var characters = []
+        var deletes = []
 
         for (var i = 0, n = revisions.length; i < n; i++) {
             let revision = revisions[i];
@@ -136,23 +189,29 @@
         function is(revision) {
             let s = revision[0].s;
             let ibi = revision[0].ibi - 1
-
-            characters = stringSplice(characters, ibi, 0, s)
-            analyze(revision)
+            for (var j = 0, m = s.length; j < m; j++) {
+                var c = {
+                    c: s[j],
+                    r: revision[3]
+                }
+                characters.splice(ibi + j, 0, c)
+            }
         }
 
         function ds(revision) {
             let si = revision[0].si - 1;
             let ei = revision[0].ei - 1;
             let len = ei - si + 1;
-            characters = stringSplice(characters, si, len)
-            analyze(revision)
+            var dels = characters.splice(si, len)
+            for (var j = 0, m = dels.length; j < m; j++) {
+                var d = dels[j]
+                d.d = revision[3]
+                deletes.push(d)
+            }
         }
 
         function mlti(revision) {
-
             var mts = revision[0].mts;
-
             for (var i = 0, n = mts.length; i < n; i++) {
 
                 let r = mts[i]
@@ -172,78 +231,8 @@
             }
         }
 
-        function analyze(revision) {
-            var snapshot = {
-                text: characters,
-                revision: revision[3]
-            }
-            snapshots.push(snapshot)
-        }
-
-        //https://stackoverflow.com/a/21350614
-        function stringSplice(str, index, count, add) {
-            return str.slice(0, index) + (add || "") + str.slice(index + count);
-        }
-
-        return snapshots;
+        return { characters: characters, deletes: deletes }
     }
 
-    //https://www.garysieling.com/blog/javascript-function-find-overlap-two-strings
-    function findOverlap(a, b) {
-        if (b.length === 0) {
-          return "";
-        }
-       
-        if (a.endsWith(b)) {
-          return b;
-        }
-       
-        if (a.indexOf(b) >= 0) {
-          return b;
-        }
-       
-        return findOverlap(a, b.substring(0, b.length - 1));
-      }
-
-      //https://stackoverflow.com/a/36566052
-      function similarity(s1, s2) {
-        var longer = s1;
-        var shorter = s2;
-        if (s1.length < s2.length) {
-          longer = s2;
-          shorter = s1;
-        }
-        var longerLength = longer.length;
-        if (longerLength == 0) {
-          return 1.0;
-        }
-        return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
-      }
-
-      function editDistance(s1, s2) {
-        s1 = s1.toLowerCase();
-        s2 = s2.toLowerCase();
-      
-        var costs = new Array();
-        for (var i = 0; i <= s1.length; i++) {
-          var lastValue = i;
-          for (var j = 0; j <= s2.length; j++) {
-            if (i == 0)
-              costs[j] = j;
-            else {
-              if (j > 0) {
-                var newValue = costs[j - 1];
-                if (s1.charAt(i - 1) != s2.charAt(j - 1))
-                  newValue = Math.min(Math.min(newValue, lastValue),
-                    costs[j]) + 1;
-                costs[j - 1] = lastValue;
-                lastValue = newValue;
-              }
-            }
-          }
-          if (i > 0)
-            costs[s2.length] = lastValue;
-        }
-        return costs[s2.length];
-      }
 })()
+
