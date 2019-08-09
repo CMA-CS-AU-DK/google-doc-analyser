@@ -9,8 +9,8 @@
         revisionCount:0,
         users:{},
         revisions:[], //Do we want to include this as data as well -- might be a huge object!
-        RevisionsText: ""
-        //?
+        revisionsText: "",
+        tabID:null
     }
 
     //we want Google Docs to have loeaded essentials before adding the UI
@@ -25,7 +25,7 @@
         var rightOffset = docsTitlebarButtons.getBoundingClientRect().width + 60
         UIContainer = document.createElement("DIV")
         UIContainer.id = "document-revision-analyser-ui"
-        UIContainer.setAttribute('style',`user-select:none;position:absolute;top:11px; right:${rightOffset}px;width:180px;height:24px; border:1px solid #666;border-radius:3px;`)
+        UIContainer.setAttribute('style',`overflow:hidden;user-select:none;position:absolute;top:11px; right:${rightOffset}px;width:180px;height:24px; border:1px solid #666;border-radius:3px;`)
     
         UIProgressBar = document.createElement("DIV")
         UIProgressBar.setAttribute('style','position:absolute; top:0px; left:0px;height:24px; width:0px; background-color: rgba(100,254,100,0.7);')
@@ -49,15 +49,21 @@
     }
 
     function progressChange(msg, pixels){
-        //var width = UIProgressBar.getBoundingClientRect().width + pixels
+        var width = UIProgressBar.getBoundingClientRect().width + pixels
         UIAnalyzeButton.innerHTML=msg
-        //UIProgressBar.setAttribute('style',`position:absolute; top:0px; left:0px;height:24px; width:${width}px; background-color: rgba(100,254,100,0.7);`)
+        UIProgressBar.setAttribute('style',`position:absolute; top:0px; left:0px;height:24px; width:${width}px; background-color: rgba(100,254,100,0.7);`)
+    }
+
+    function resetAnalysis(){
+        UIAnalyzeButton.innerHTML = "Analyze document revisions"
+        UIProgressBar.setAttribute('style',`position:absolute; top:0px; left:0px;height:24px; width:0px; background-color: rgba(100,254,100,0.7);`)
+        UIAnalyzeButton.onclick = analyze
     }
 
     function analyze(){
         UIAnalyzeButton.onclick = undefined //We want to disable the button while we analyse (might replace it with some fancy UI at some point)
         
-        progressChange("Fetching metadata", 0)
+        progressChange("Fetching metadata", 10)
         fetchRevisionMetadata().then(function(metadata){
             documentData.revisionCount = metadata.tileInfo[metadata.tileInfo.length -1].end
             documentData.users = metadata.userMap
@@ -73,7 +79,7 @@
                 i++;
             }
 
-            progressChange("Fetching revisions", 10)
+            progressChange("Fetching revisions", 0)
             console.log("Fetching revisions")
             fetchRevisions(documentData.revisionCount).then(function(revisionData){
                     
@@ -81,15 +87,11 @@
                 progressChange("Cleaning revisions", 10)
                 console.log("cleaning revisions")
                 var revisions = cleanRevisions(revisionData)
-                
-                progressChange("Analysing revisions", 10)
-                console.log("Analysing revisions")
-                sendDataToExtension(revisions, "analyze") 
-                //var changesAndDeletesArray = analyzeRevisions(revisions)
-                //progressChange("Generating output", 0)
+                documentData.revisions = revisions 
+                //From now we hand over the processing to the extensions background page
+                sendDataToExtension(documentData, "analyze")
 
-                //constructRevisionDOMString(changesAndDeletesArray[0], changesAndDeletesArray[1])
-                console.log("done")
+                return
             }).catch(function(err){
                 console.log(err)
             })
@@ -136,142 +138,41 @@
         return revisions
     }
 
-    function analyzeRevisions(revisions){
-            console.log("Analysis start", Date.now())
-            var characters = []
-            var deletes = []
-            var timestamp = Date.now()
-            var progressStatus = 0
-            for (var i = 0, n = revisions.length; i < n; i++) {
-                let revision = revisions[i];
-                let t = revision[0].ty
 
-                if (t === "is") {
-                    is(revision)
-                } else if (t === "ds") {
-                    ds(revision)
-                } else if (t === "mlti") {
-                    mlti(revision)
-                }
-
-                
-                //if(i%500 === 0){
-                    
-                //  var progress = Math.floor(i / revisions.length * 100)
-                //  var step = Math.floor((progress-progressStatus)/2)
-                //  if(progress > progressStatus && step !== 0){
-                        // console.log("step ",step) 
-                //      progressChange("Generating output", step)
-                //      progressStatus = progressStatus + step
-                //  }
-
-                //  var delta = Date.now()-timestamp
-                    //console.log("Estimated time left: ", (delta/progress)*(100 - progress))
-                
-                //}
-            }
-       console.log("analysis end", Date.now()-timestamp)
-       return [characters, deletes]
-
-       function is(revision) {
-            let s = revision[0].s;
-            let ibi = revision[0].ibi - 1
-            for (var j = 0, m = s.length; j < m; j++) {
-                var c = {
-                    c: s[j],
-                    r: revision[3]
-                }
-                characters.splice(ibi + j, 0, c)
+    async function fetchRevisions(count){
+        var revisions = {changelog:[], chunkedSnapshot:[]}
+        var steps = Math.floor(count / 10000)+1
+        var tick = Math.ceil(50/steps)
+        var modolu = count % 10000
+        for(var i = 1; i < count-modolu; i+= 10000){
+            try {
+                var revs = await fetchRevisionSet(i, i+9999)
+                revisions.changelog = revisions.changelog.concat(revs.changelog)
+                revisions.chunkedSnapshot = revisions.chunkedSnapshot.concat(revs.chunkedSnapshot)
+                progressChange("Fetching revisions", tick)
+            } catch(err) {
+                console.log(err)
             }
         }
 
-        function ds(revision) {
-            let si = revision[0].si - 1;
-            let ei = revision[0].ei - 1;
-            let len = ei - si + 1;
-            var dels = characters.splice(si, len)
-            for (var j = 0, m = dels.length; j < m; j++) {
-                var d = dels[j]
-                d.d = revision[3]
-                deletes.push(d)
-            }
+        try {
+            var revs = await fetchRevisionSet(i, i+modolu-1)
+            revisions.changelog = revisions.changelog.concat(revs.changelog)
+            revisions.chunkedSnapshot = revisions.chunkedSnapshot.concat(revs.chunkedSnapshot)
+            progressChange("Fetching  revisions", tick)
+        } catch(err){
+            console.log(err)
         }
-
-        function mlti(revision) {
-            var mts = revision[0].mts;
-            for (var i = 0, n = mts.length; i < n; i++) {
-
-                let r = mts[i]
-
-                let nr = [r, revision[1], revision[2], revision[3]]
-                if (!r) {
-                    continue;
-                }
-
-                if (r.ty === "is") {
-                    is(nr)
-                } else if (r.ty === "ds") {
-                    ds(nr)
-                } else if (r.ty === "mlti") {
-                    mlti(nr)
-                }
-            }
-        }
-    }
-
-    function constructRevisionDOMString(characters, deletes){
-        var paragraphStart = 0 
-        var timestamp = Date.now()
-        var progressStatus = 0
-        for (var i = 0, n = characters.length; i < n; i++) {
-       
-            var o = characters[i]
-            if (o.c.match(/\n/) || i === n - 1) {
-                
-                //var el = document.createElement("p")
-                var sectionRevisions = [o.r]
-                var spans = []
-
-                for (var j = paragraphStart, k = i; j < k; j++) {
-                    var oo = characters[j]
         
-                    var oel = `<span class="revision" data-revision="${oo.r}">${oo.c}</span>`;
-                    spans.push(oel);
-
-                    for (var l = 0, m = deletes.length; l < m; l++) {
-                        var d = deletes[l]
-                        if (d.r === o.r || (d.r > o.r && (j === k - 1 || d.r < characters[j + 1].r))) {
-                            var del = '<span class="revision deleted" data-revision="' + d.d + '" data-deleted="' + d.r + '">' + d.c + '</span>';
-                            spans.push(del)
-                            
-                            break;
-                        }
-                    }
-                }
-
-                paragraphStart = i + 1
-                documentData.RevisionsText += spans.join('')
-            }
-            
-
-            if(i%1000 === 0){
-                var progress = Math.floor(i / characters.length)*100
-                if(progress > progressStatus){
-                    progressChange("Generating output", progress-progressStatus)
-                    progressStatus = progress
-                }
-
-                var delta = Date.now()-timestamp
-                //console.log("Estimated time left: ", delta/100*progress)
-                
-            }
-        }
+        return revisions
+    
     }
 
-    function fetchRevisions(count){
-        var url = `${BaseURL}${DocumentID}/revisions/load?id=${DocumentID}&start=1&end=${parseInt((''+count).replace(/,g/,''))}&token=${Token}`
+    function fetchRevisionSet(start, end){
+        var url = `${BaseURL}${DocumentID}/revisions/load?id=${DocumentID}&start=${start}&end=${parseInt((''+end).replace(/,g/,''))}&token=${Token}`
         return fetch(url)
     }
+
 
     function fetchRevisionMetadata(){
         var historyURL = BaseURL + DocumentID + "/revisions/tiles?id=" + DocumentID + "&start=1&showDetailedRevisions=false&token=" + Token
@@ -305,7 +206,6 @@
     }
 
     function fetch(url){
-        console.log(url)
         return new Promise(function(resolve, reject){
         
             var xhr = new XMLHttpRequest();
@@ -333,17 +233,20 @@
     }
 
     function sendDataToExtension(data, action){
-        console.log("sending?")
-        chrome.runtime.sendMessage({data:data, action:action}, function(response){
-        
-        
-        });
+        chrome.runtime.sendMessage({data:data, action:action}, function(response){});
     }   
 
     chrome.runtime.onMessage.addListener(function(request, sender, sendResponse){
-        if(request.action === "progress"){
+        if(request.action === "progressTick"){
             progressChange(request.msg, request.tick)   
         }
+
+        if(request.action === "done"){
+            progressChange("Done", 50)
+            resetAnalysis()
+        }
+
+        return true
     })
 })();
   

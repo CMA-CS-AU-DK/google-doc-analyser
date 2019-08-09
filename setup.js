@@ -50,18 +50,17 @@ function addMenuItems() {
         "id": "itm2",
         "title": "Analyse Revisions",
         "type": "normal",
-        "contexts": ["browser_action"],
-        "onclick": analyse
+        "contexts": ["browser_action"]
     });
 };
-
+/*
 function analyse(){
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         chrome.tabs.create({ url:  "client/analyse.html?tabid="+tabs[0].id}, function(tab){
              
         });
     })
-}
+}*/
 
 function getData(callback){
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -118,13 +117,11 @@ function download() {
         });
     });
 }
-
-    function analyzeRevisions(revisions){
-            console.log("Analysis start", Date.now())
+    //Gonna make this function async since we do not want to block the messaging event loop
+    function analyzeRevisions(revisions, tabID){
             var characters = []
             var deletes = []
-            var timestamp = Date.now()
-            var progressStatus = 0
+            var progressStep = Math.ceil(revisions.length/50)
             for (var i = 0, n = revisions.length; i < n; i++) {
                 let revision = revisions[i];
                 let t = revision[0].ty
@@ -136,24 +133,11 @@ function download() {
                 } else if (t === "mlti") {
                     mlti(revision)
                 }
-
                 
-                //if(i%500 === 0){
-                    
-                //  var progress = Math.floor(i / revisions.length * 100)
-                //  var step = Math.floor((progress-progressStatus)/2)
-                //  if(progress > progressStatus && step !== 0){
-                        // console.log("step ",step) 
-                //      progressChange("Generating output", step)
-                //      progressStatus = progressStatus + step
-                //  }
-
-                //  var delta = Date.now()-timestamp
-                    //console.log("Estimated time left: ", (delta/progress)*(100 - progress))
-                
-                //}
-            }
-       console.log("analysis end", Date.now()-timestamp)
+                if(i%progressStep  === 0){
+                    progressTick("Processing revisions",1, tabID)
+                }
+            } 
        return [characters, deletes]
 
        function is(revision) {
@@ -202,14 +186,68 @@ function download() {
         }
     }
 
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse){
-    console.log("hep")
-    if(request.action === "analyze"){
-        analyzeRevisions(request.data)
+    function constructRevisionDOMString(characters, deletes, tabID){
+        var paragraphStart = 0 
+        var DOMstring = ""
+        var progressStep = Math.ceil(characters.length/50)
+        for (var i = 0, n = characters.length; i < n; i++) {
+       
+            var o = characters[i]
+            if (o.c.match(/\n/) || i === n - 1) {
+                
+                //var el = document.createElement("p")
+                var sectionRevisions = [o.r]
+                var spans = []
+
+                for (var j = paragraphStart, k = i; j < k; j++) {
+                    var oo = characters[j]
+        
+                    var oel = `<span class="revision" data-revision="${oo.r}">${oo.c}</span>`;
+                    spans.push(oel);
+
+                    for (var l = 0, m = deletes.length; l < m; l++) {
+                        var d = deletes[l]
+                        if (d.r === o.r || (d.r > o.r && (j === k - 1 || d.r < characters[j + 1].r))) {
+                            var del = '<span class="revision deleted" data-revision="' + d.d + '" data-deleted="' + d.r + '">' + d.c + '</span>';
+                            spans.push(del)
+                            
+                            break;
+                        }
+                    }
+                }
+
+                paragraphStart = i + 1
+                DOMstring += spans.join('')
+            }
+            
+
+            if(i%progressStep  === 0){
+                progressTick("Generating analysis",1, tabID)
+            }
+        }
+
+        return DOMstring
     }
+
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse){
     
+    if(request.action === "analyze"){
+        request.data.tabID = sender.tab.id
+        analyze(request.data)
+    }   
+    return true
 })
 
-function sendMessageToPage(){
-                    //find sender?
+async function analyze(documentData){
+    const [characters, deletes] = analyzeRevisions(documentData.revisions, documentData.tabID) 
+    constructRevisionDOMString(characters, deletes, documentData.tabID)
+    chrome.tabs.sendMessage(documentData.tabID, {action:"done"});
+    
+    chrome.tabs.create({ url:  "client/analyzis.html"}, function(tab){
+        console.log(tab)
+    });
+}
+
+function progressTick(msg, tick,  tabID){
+    chrome.tabs.sendMessage(tabID, {msg:msg, tick:tick, action:"progressTick"})
 }
