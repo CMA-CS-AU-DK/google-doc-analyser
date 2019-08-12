@@ -217,7 +217,9 @@ function download() {
                 }
 
                 paragraphStart = i + 1
+                DOMstring += '<p>'
                 DOMstring += spans.join('')
+                DOMstring += '</p>'
             }
             
 
@@ -240,11 +242,15 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse){
 
 async function analyze(documentData){
     const [characters, deletes] = analyzeRevisions(documentData.revisions, documentData.tabID) 
-    constructRevisionDOMString(characters, deletes, documentData.tabID)
+    documentData.revisionsText = constructRevisionDOMString(characters, deletes, documentData.tabID)
+    
     chrome.tabs.sendMessage(documentData.tabID, {action:"done"});
     
     chrome.tabs.create({ url:  "client/analyzis.html"}, function(tab){
-        console.log(tab)
+        setTimeout(function(){
+            chrome.tabs.sendMessage(tab.id, documentData)
+        }, 500)
+        
     });
 }
 

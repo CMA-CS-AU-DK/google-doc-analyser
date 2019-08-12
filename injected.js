@@ -10,7 +10,8 @@
         users:{},
         revisions:[], //Do we want to include this as data as well -- might be a huge object!
         revisionsText: "",
-        tabID:null
+        tabID:null,
+        title:null
     }
 
     //we want Google Docs to have loeaded essentials before adding the UI
@@ -39,11 +40,6 @@
 
         UIContainer.appendChild(UIProgressBar)       
         UIContainer.appendChild(UIAnalyzeButton)
-        //Text stages
-
-        //"Fetching document revisions"
-        //"Preparing revisions for analysis"
-        //"Generating analysis page"
 
         docsTitlebar.appendChild(UIContainer) 
     }
@@ -67,8 +63,7 @@
         fetchRevisionMetadata().then(function(metadata){
             documentData.revisionCount = metadata.tileInfo[metadata.tileInfo.length -1].end
             documentData.users = metadata.userMap
-            console.log(documentData.revisionCount) 
-            
+            documentData.title = document.querySelector("#docs-titlebar .docs-title-input").value
             var i = 0;
 
             for(var k in documentData.users){
@@ -99,13 +94,6 @@
             console.log(err)
         })
         
-        //UIAnalyzeButton.innerHTML = "Error collecting data!"
-        //UIAnalyzeButton.onclick = analyze
-        
-
-        
-        //UIAnalyzeButton.onclick = analyze
-
     }
 
     function cleanRevisions(revisionData){

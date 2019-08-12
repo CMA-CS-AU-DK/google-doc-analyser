@@ -1,4 +1,23 @@
 ; (function () {
+    
+    var documentData;
+
+    chrome.runtime.onMessage.addListener(function(request, sender, sendResponse){
+        documentData = request
+        generatePage();
+        return true;
+          
+    })
+
+    async function generatePage(){
+        var title = document.querySelector('h1')
+        title.innerHTML = documentData.title
+        var originalDocument = document.querySelector('#document')
+        originalDocument.innerHTML = documentData.revisionsText
+        console.log(documentData)
+    }
+
+    /*
     var url = new URL(location);
     var id = url.searchParams.get("tabid");
     //TODO: store parts of the analysis in local storage to persist across reload
@@ -28,7 +47,7 @@
         console.log("Build page is done")
         createVisualisation()
         addInteractivity()*/
-    })
+    //})
 
     function buildPage(characters, deletes) {
         var paragraphStart = 0
