@@ -44,15 +44,32 @@ function addMenuItems() {
         "title": "Download Revisions",
         "type": "normal",
         "contexts": ["browser_action"],
-        "onclick": download
+        "onclick": downloadFromMenu
     });
     chrome.contextMenus.create({
         "id": "itm2",
         "title": "Analyse Revisions",
         "type": "normal",
-        "contexts": ["browser_action"]
+        "contexts": ["browser_action"],
+        "onclick": analyzeFromMenu
     });
 };
+
+function downloadFromMenu(){
+    chrome.tabs.query({active:true, currentWindow:true}, function(tabs) {
+        var id = tabs[0].id
+        chrome.tabs.sendMessage(id, {action:"download"})
+    })
+}
+
+function analyzeFromMenu(){
+    chrome.tabs.query({active:true, currentWindow:true}, function(tabs) {
+        var id = tabs[0].id
+        chrome.tabs.sendMessage(id, {action:"analyze"})
+    })
+}
+
+
 /*
 function analyse(){
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -107,18 +124,8 @@ function getData(callback){
     });
 }
 
-function download() {
-    getData(function(data){
-        var blob = new Blob([JSON.stringify(data, null, 4)], { type: 'application/json' });
-            var url = URL.createObjectURL(blob);
-            chrome.downloads.download({
-                url: url,
-                filename: data.title + ".json"
-        });
-    });
-}
     //Gonna make this function async since we do not want to block the messaging event loop
-    function analyzeRevisions(revisions, tabID){
+    function analyzeRevisions(revisions, tabID, withProgressNotification){
             var characters = []
             var deletes = []
             var progressStep = Math.ceil(revisions.length/50)
@@ -134,7 +141,7 @@ function download() {
                     mlti(revision)
                 }
                 
-                if(i%progressStep  === 0){
+                if(withProgressNotification && i%progressStep  === 0){
                     progressTick("Processing revisions",1, tabID)
                 }
             } 
@@ -186,7 +193,7 @@ function download() {
         }
     }
 
-    function constructRevisionDOMString(characters, deletes, tabID){
+    function constructRevisionDOMString(characters, deletes, tabID, withProgressNotification){
         var paragraphStart = 0 
         var DOMstring = ""
         var progressStep = Math.ceil(characters.length/50)
@@ -223,7 +230,7 @@ function download() {
             }
             
 
-            if(i%progressStep  === 0){
+            if(withProgressNotification && i%progressStep  === 0){
                 progressTick("Generating analysis",1, tabID)
             }
         }
@@ -236,13 +243,18 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse){
     if(request.action === "analyze"){
         request.data.tabID = sender.tab.id
         analyze(request.data)
-    }   
+    }
+
+    if(request.action === "download"){
+        download(request.data)
+    }
     return true
 })
 
 async function analyze(documentData){
-    const [characters, deletes] = analyzeRevisions(documentData.revisions, documentData.tabID) 
-    documentData.revisionsText = constructRevisionDOMString(characters, deletes, documentData.tabID)
+
+    const [characters, deletes] = analyzeRevisions(documentData.revisions, documentData.tabID, true) 
+    documentData.revisionsText = constructRevisionDOMString(characters, deletes, documentData.tabID, true)
     
     chrome.tabs.sendMessage(documentData.tabID, {action:"done"});
     
@@ -251,6 +263,21 @@ async function analyze(documentData){
             chrome.tabs.sendMessage(tab.id, documentData)
         }, 500)
         
+    });
+}
+
+async function download(documentData){
+
+    //we need to do this without the process tick
+    const [characters, deletes] = analyzeRevisions(documentData.revisions, documentData.tabID) 
+    documentData.revisionsText = constructRevisionDOMString(characters, deletes, documentData.tabID)
+    
+
+    var blob = new Blob([JSON.stringify(documentData, null, 4)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        chrome.downloads.download({
+            url: url,
+            filename: documentData.title + ".json"
     });
 }
 

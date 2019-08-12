@@ -56,6 +56,11 @@
         UIAnalyzeButton.onclick = analyze
     }
 
+    async function analyzeAsyncWrapper(){
+        analyze()
+    }
+
+
     function analyze(){
         UIAnalyzeButton.onclick = undefined //We want to disable the button while we analyse (might replace it with some fancy UI at some point)
         
@@ -76,7 +81,7 @@
 
             progressChange("Fetching revisions", 0)
             console.log("Fetching revisions")
-            fetchRevisions(documentData.revisionCount).then(function(revisionData){
+            fetchRevisions(documentData.revisionCount, true).then(function(revisionData){
                     
                 
                 progressChange("Cleaning revisions", 10)
@@ -85,6 +90,40 @@
                 documentData.revisions = revisions 
                 //From now we hand over the processing to the extensions background page
                 sendDataToExtension(documentData, "analyze")
+
+                return
+            }).catch(function(err){
+                console.log(err)
+            })
+        }).catch(function(err){
+            console.log(err)
+        })
+        
+    }
+
+
+    async function download(){
+        
+        fetchRevisionMetadata().then(function(metadata){
+            documentData.revisionCount = metadata.tileInfo[metadata.tileInfo.length -1].end
+            documentData.users = metadata.userMap
+            documentData.title = document.querySelector("#docs-titlebar .docs-title-input").value
+            var i = 0;
+
+            for(var k in documentData.users){
+                var u = documentData.users[k]
+                u.id = k
+                //we create a shorthand id to minimise the user id size in the final revision data.
+                u.short = "u"+i
+                i++;
+            }
+
+            fetchRevisions(documentData.revisionCount).then(function(revisionData){
+                    
+                var revisions = cleanRevisions(revisionData)
+                documentData.revisions = revisions 
+                //From now we hand over the processing to the extensions background page
+                sendDataToExtension(documentData, "download")
 
                 return
             }).catch(function(err){
@@ -127,7 +166,7 @@
     }
 
 
-    async function fetchRevisions(count){
+    async function fetchRevisions(counti, withProgressNotification){
         var revisions = {changelog:[], chunkedSnapshot:[]}
         var steps = Math.floor(count / 10000)+1
         var tick = Math.ceil(50/steps)
@@ -137,7 +176,9 @@
                 var revs = await fetchRevisionSet(i, i+9999)
                 revisions.changelog = revisions.changelog.concat(revs.changelog)
                 revisions.chunkedSnapshot = revisions.chunkedSnapshot.concat(revs.chunkedSnapshot)
-                progressChange("Fetching revisions", tick)
+                if(withProgressNotification){
+                    progressChange("Fetching revisions", tick)
+                }
             } catch(err) {
                 console.log(err)
             }
@@ -147,7 +188,10 @@
             var revs = await fetchRevisionSet(i, i+modolu-1)
             revisions.changelog = revisions.changelog.concat(revs.changelog)
             revisions.chunkedSnapshot = revisions.chunkedSnapshot.concat(revs.chunkedSnapshot)
-            progressChange("Fetching  revisions", tick)
+
+            if(withProgressNotification){
+               progressChange("Fetching revisions", tick)
+            }
         } catch(err){
             console.log(err)
         }
@@ -232,6 +276,14 @@
         if(request.action === "done"){
             progressChange("Done", 50)
             resetAnalysis()
+        }
+
+        if(request.action === "analyze"){
+            analyzeAsyncWrapper()
+        }
+
+        if(request.action === "download"){
+            download()
         }
 
         return true
