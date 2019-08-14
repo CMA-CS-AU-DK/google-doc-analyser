@@ -28,6 +28,7 @@
 		"webRequest",
 		"webNavigation",
 		"tabs",
+        "windows",
 		"activeTab",
 		"contextMenus",
 		"downloads",
