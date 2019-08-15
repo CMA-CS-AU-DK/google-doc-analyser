@@ -23,11 +23,11 @@
         var doc = document.querySelector(".kix-paragraphrenderer").parentNode
         const config = { attributes: false, childList: true, subtree: true };
         const callback = function(mutationsList, observer) {
-            fetchLatestRevision().then(function(rev){
-                chrome.runtime.sendMessage(rev)
-            }).catch(function(err){
-                console.log(err)
-            })
+                fetchLatestRevision().then(function(rev){
+                    chrome.runtime.sendMessage(rev)
+                }).catch(function(err){
+                    console.log(err)
+                })
         }
 
         const observer = new MutationObserver(callback);

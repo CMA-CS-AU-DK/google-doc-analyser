@@ -1,0 +1,29 @@
+html,body {
+    margin:25px auto;
+    background-color: rgb(247,248,249)
+}
+
+
+#doc {
+    margin:auto;
+    padding: 96px;
+    width:624px;
+    height:704px;
+    background:white;
+    box-shadow: 0 0 3px 2px rgb(226, 227, 229);
+    font-size:14.66666666666666666px;
+    font-family: Arial;
+    color:#000;
+    font-weight:400;
+    font-style:normal;
+    font-variant:normal;
+    vertical-align:baseline;
+    white-space:pre;
+}
+
+#doc p {
+    margin:0px;
+    padding:0px;
+    height:20px;
+}
+
