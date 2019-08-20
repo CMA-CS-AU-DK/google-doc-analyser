@@ -23,11 +23,14 @@
         var doc = document.querySelector(".kix-paragraphrenderer").parentNode
         const config = { attributes: false, childList: true, subtree: true };
         const callback = function(mutationsList, observer) {
+            
+                /*
+                 * We do not want to update the revisions in the analysis tool right now.
                 fetchLatestRevision().then(function(rev){
                     chrome.runtime.sendMessage(rev)
                 }).catch(function(err){
                     console.log(err)
-                })
+                })*/
         }
 
         const observer = new MutationObserver(callback);
@@ -333,12 +336,12 @@
 
     async function sendRevisionData(){
 
-
         fetchRevisionMetadata().then(function(metadata){
             let last = metadata.tileInfo[metadata.tileInfo.length -1].end
 
             fetchRevisions(last).then(function(revs){
-                chrome.runtime.sendMessage(revs.changelog)
+                revs.title = documentData.title 
+                chrome.runtime.sendMessage(revs)
             }).catch(function(err){
                 console.log(err)
             })

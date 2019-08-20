@@ -3,9 +3,32 @@ html,body {
     background-color: rgb(247,248,249)
 }
 
+h1#title {
+    margin:10px 50px;
+}
+
+#controls {
+    margin:10px 50px;
+    width: 796px;
+}
+
+#controls #counter {
+    color:#666;
+    padding-left:2px;
+}
+
+#controls button {
+    padding:5px;
+    margin: 5px;
+}
+
+#controls input[type="range"] {
+    margin:10px 0px 10px 15px;
+    width:620px;
+}
 
 #doc {
-    margin:auto;
+    margin:30px 50px;
     padding: 96px;
     width:624px;
     height:704px;
@@ -26,4 +49,9 @@ html,body {
     padding:0px;
     height:20px;
 }
+
+#doc p .del, #doc p.del {
+    display:none;
+}
+
 
