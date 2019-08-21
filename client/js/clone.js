@@ -7,22 +7,22 @@
     let _snapshots
     let _revisions
     let _uiSlider, _uiCounter, _uiCounterMax
-
+    let _document
     let _currentRevision = 0
     let _timer
-    let _revisionDeltas = []
 
     chrome.tabs.sendMessage(parseInt(_id), { action: "clone" }, function (response) {
     })
 
     chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         console.log(request)
+        _document = document.querySelector("#doc")
         _title = request.title
         _revisions = request.changelog
         _snapshots = request.chunkedSnapshot
-
+        _revisionDeltas = new Array(_revisions.length);
         setupUserInterface()
-        analyseRevision()
+        analyseRevision(_currentRevision)
         return true
     })
 
@@ -38,7 +38,8 @@
 
         let _play = document.querySelector('#controls #play')
         _play.addEventListener('click', function () {
-            if (_play.value === "Play") {
+            console.log(_play.value)
+            if (_play.innerHTML === "Play") {
                 _play.innerHTML = "Pause"
                 play()
             } else {
@@ -47,21 +48,29 @@
             }
         })
 
-
         let _prev = document.querySelector('#controls #prev')
         _prev.addEventListener('click', function () {
             pause()
             _currentRevision = _currentRevision != -1 ? _currentRevision - 1 : _currentRevision
+            console.log(_currentRevision)
+            analyseRevisions(_currentRevision)
             updateUI()
-            analyseRevision()
         })
 
         let _next = document.querySelector('#controls #next')
         _next.addEventListener('click', function () {
             pause()
+            _previousRevisionNumber = _currentRevision
             _currentRevision = _currentRevision != _revisions.length - 1 ? _currentRevision + 1 : _currentRevision
             updateUI()
-            analyseRevision()
+            analyseRevision(_currentRevision)
+        })
+
+        _uiSlider.addEventListener('change', function(){
+            pause()
+            _currentRevision = parseInt(_uiSlider.value)
+            analyseRevisions(_currentRevision)
+            updateUI()
         })
     }
 
@@ -71,10 +80,11 @@
     }
 
     function play() {
+        console.log("play")
         _timer = setInterval(function () {
             _currentRevision = _currentRevision != _revisions.length - 1 ? _currentRevision + 1 : _currentRevision
             updateUI()
-            analyseRevision() 
+            analyseRevision(_currentRevision) 
         }, 1000)
     }
 
@@ -97,12 +107,12 @@
         newParagraph.classList = `rev_${revision[3]}`
 
         //newParagraph.innerHTML = `<span class="spacer">&nbsp;</span>` //Google Documents always have this, but I don't know if we need it yet
-        let paragraphs = doc.querySelectorAll("p")
+        let paragraphs = _document.querySelectorAll("p")
 
         if (si === 1) {
             newParagraph.dataset.si = si
             newParagraph.dataset.ei = revision[0].ei
-            doc.prepend(newParagraph)
+            _document.prepend(newParagraph)
             for (let i = 0, n = paragraphs.length; i < n; i++) {
                 paragraphs[i].dataset.si = parseInt(paragraphs[i].dataset.si) + 1
                 paragraphs[i].dataset.ei = parseInt(paragraphs[i].dataset.ei) + 1
@@ -110,7 +120,7 @@
         } else if (si + 1 >= paragraphs[paragraphs.length - 1].dataset.ei) {
             newParagraph.dataset.si = si + 1 //because the end of line character this revision represents belong to the previous paragraph.
             newParagraph.dataset.ei = revision[0].ei + 1
-            doc.append(newParagraph)
+            _document.append(newParagraph)
         } else {
             let ei = revision[0].ei
             for (let i = 0, n = paragraphs.length; i < n; i++) {
@@ -171,9 +181,16 @@
         }
     }
 
-    function analyseRevision() {
-        let revision = _revisions[_currentRevision]
-         
+    function analyseRevisions(endIndex){
+        _document.innerHTML = ""
+        for(let i = 0; (i <= endIndex && i < _revisions.length ) ; i++){
+            analyseRevision(i)
+        } 
+    }
+
+    function analyseRevision(index) {
+        let revision = _revisions[index]
+        console.log(revision)
         if (!revision || !revision[0]) {
             return
         }
@@ -203,7 +220,7 @@
             children.push(el)
         }
 
-        let paragraphs = doc.querySelectorAll("p")
+        let paragraphs = _document.querySelectorAll("p")
         //Identify target paragraph for the insert
         for (let i = 0, n = paragraphs.length; i < n; i++) {
             let paragraph = paragraphs[i]
@@ -244,11 +261,10 @@
     }
 
     function ds(revision) {
-        console.log("deletion")
         let si = revision[0].si;
         let ei = revision[0].ei;
         let len = si - ei + 1
-        let paragraphs = doc.querySelectorAll("p")
+        let paragraphs = _document.querySelectorAll("p")
         for (let i = 0, n = paragraphs.length; i < n; i++) {
             let paragraph = paragraphs[i]
             let psi = parseInt(paragraph.dataset.si)
@@ -316,32 +332,6 @@
         if (revision[0].st === "paragraph") {
             insertParagraph(revision)
         }
-    }
-
-    async function analyseRevisions(revisions) {
-        console.log("rs ", revisions)
-        for (let i = 0, n = 58; i < n; i++) {
-            let r = revisions[i]
-            console.log(r)
-            if (!r || !r[0]) {
-                continue
-            }
-            let ty = r[0].ty
-            if (ty === "is") {
-                is(r)
-            } else if (ty === "ds") {
-                ds(r)
-            } else if (ty === "mlti") {
-                mlti(r)
-            } else if (ty === "as") {
-                console.log("solitaire as revision");
-            }
-            console.log("---- END ----")
-            await sleep(100);
-        }
-
-
-
     }
 
 })()

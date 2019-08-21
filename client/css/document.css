@@ -22,9 +22,13 @@ h1#title {
     margin: 5px;
 }
 
+#controls button#play {
+    width:50px;
+}
+
 #controls input[type="range"] {
     margin:10px 0px 10px 15px;
-    width:620px;
+    width:600px;
 }
 
 #doc {
