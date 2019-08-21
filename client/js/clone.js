@@ -31,10 +31,10 @@
         let titleElement = document.querySelector('h1#title')
         titleElement.innerHTML = _title || 'Untitled document'
         _uiSlider = document.querySelector('#controls input[type="range"]')
-        _uiSlider.setAttribute("max", _revisions.length)
+        _uiSlider.setAttribute("max", _revisions.length-1)
         _uiCounter = document.querySelector('#controls #count')
         _uiCounterMax = document.querySelector('#controls #total')
-        _uiCounterMax.innerHTML = _revisions.length
+        _uiCounterMax.innerHTML = _revisions.length - 1
 
         let _play = document.querySelector('#controls #play')
         _play.addEventListener('click', function () {
@@ -61,9 +61,11 @@
         _next.addEventListener('click', function () {
             pause()
             _previousRevisionNumber = _currentRevision
-            _currentRevision = _currentRevision != _revisions.length - 1 ? _currentRevision + 1 : _currentRevision
-            updateUI()
-            analyseRevision(_currentRevision)
+            if(_currentRevision != _revisions.length -1){
+                _currentRevision++
+                updateUI()
+                analyseRevision(_currentRevision)
+            }
         })
 
         _uiSlider.addEventListener('change', function(){
@@ -108,7 +110,7 @@
 
         //newParagraph.innerHTML = `<span class="spacer">&nbsp;</span>` //Google Documents always have this, but I don't know if we need it yet
         let paragraphs = _document.querySelectorAll("p")
-
+        let pei = paragraphs.length > 0 ? parseInt(paragraphs[paragraphs.length - 1].dataset.ei) : 1
         if (si === 1) {
             newParagraph.dataset.si = si
             newParagraph.dataset.ei = revision[0].ei
@@ -117,9 +119,10 @@
                 paragraphs[i].dataset.si = parseInt(paragraphs[i].dataset.si) + 1
                 paragraphs[i].dataset.ei = parseInt(paragraphs[i].dataset.ei) + 1
             }
-        } else if (si + 1 >= paragraphs[paragraphs.length - 1].dataset.ei) {
-            newParagraph.dataset.si = si + 1 //because the end of line character this revision represents belong to the previous paragraph.
-            newParagraph.dataset.ei = revision[0].ei + 1
+        } else if (si + 1 >= pei) {
+            console.log("end")
+            newParagraph.dataset.si = pei + 1 //because the end of line character this revision represents belong to the previous paragraph.
+            newParagraph.dataset.ei = pei + 1
             _document.append(newParagraph)
         } else {
             let ei = revision[0].ei
@@ -167,7 +170,7 @@
                 } else if (ei === psi) {
                     console.log("behind this one")
                 } else if (si === pei) {
-
+                    console.log("inserted at end")
                     newParagraph.dataset.si = si + 1 //because the end of line character this revision represents belong to the previous paragraph.
                     newParagraph.dataset.ei = revision[0].ei + 1
                     paragraph.after(newParagraph)
@@ -190,7 +193,8 @@
 
     function analyseRevision(index) {
         let revision = _revisions[index]
-        console.log(revision)
+        console.log("This: " , revision)
+        console.log("next: " , _revisions[index+1])
         if (!revision || !revision[0]) {
             return
         }
@@ -263,31 +267,56 @@
     function ds(revision) {
         let si = revision[0].si;
         let ei = revision[0].ei;
-        let len = si - ei + 1
+        let len = ei - si
+        console.log(len)
         let paragraphs = _document.querySelectorAll("p")
         for (let i = 0, n = paragraphs.length; i < n; i++) {
             let paragraph = paragraphs[i]
             let psi = parseInt(paragraph.dataset.si)
             let pei = parseInt(paragraph.dataset.ei)
-            if (si >= psi && ei < pei) {
-                i
+            if (si >=  psi && ei < pei) {
                 let children = paragraph.querySelectorAll('span.ins')
 
-                for (let ii = 0; ii < len; ii++) {
+                //if we only remove one character len will be 0 and this will never run
+                for (let ii = 0; ii < len+1; ii++) {
                     let child = children[si - psi + ii]
                     child.classList.remove('ins')
                     child.classList.add('del')
                     child.classList.add(`del_rev_${revision[3]}`)
                 }
 
-                paragraph.dataset.ei = parseInt(paragraph.dataset.ei) - len
+                let indexOffset = len === 0 ? 1 : len
 
+                //so, if len is only 1 we remove that character and adjust index accordingly 
+                if(len === 0){
+                    let child = children[si-psi]
+                    child.classList.remove('ins')
+                    child.classList.add('del')
+                    child.classList.add(`del_rev_${revision[3]}`)
+                } 
+
+                paragraph.dataset.ei = parseInt(paragraph.dataset.ei) - indexOffset
+                //if len === 0 we need to change the index 
+                
                 //We need to fix the index of all paragraphs that follow. 
                 for (let ii = i + 1; ii < n; ii++) {
                     let nextParagraph = paragraphs[ii]
-                    nextParagraph.dataset.si = parseInt(nextParagraph.dataset.si) - len
-                    nextParagraph.dataset.ei = parseInt(nextParagraph.dataset.ei) - len
+                    nextParagraph.dataset.si = parseInt(nextParagraph.dataset.si) - indexOffset
+                    nextParagraph.dataset.ei = parseInt(nextParagraph.dataset.ei) - indexOffset
                 }
+                    /* 
+                if(si !== 1 && si === psi){
+                    console.log("delete paragraph as well, no!");
+                    paragraph.classList.add('del')
+                    paragraph.classList.add(`del_rev_${revision[3]}`)
+                    
+                    //We need to fix the index of all paragraphs that follow. 
+                    for (let ii = i + 1; ii < n; ii++) {
+                        let nextParagraph = paragraphs[ii]
+                        nextParagraph.dataset.si = parseInt(nextParagraph.dataset.si) - 1
+                        nextParagraph.dataset.ei = parseInt(nextParagraph.dataset.ei) - 1
+                    }
+                }*/
 
                 break
             } else if (si === pei) {
@@ -301,9 +330,7 @@
                     nextParagraph.dataset.ei = parseInt(nextParagraph.dataset.ei) - 1
                 }
                 break
-            } else if (si === psi) {
-                console.log("heop")
-            }
+            } 
         }
     }
 
